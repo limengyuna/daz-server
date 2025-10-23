@@ -1,0 +1,29 @@
+{
+  "src": [
+    "pages/Index",
+    "pages/Fyx1AnalyzePage",
+    "pages/Fyx2StepStatistics",
+    "pages/Fyx3ScheduleReminderPage",
+    "pages/Fyx4ReminderSettingPage",
+    "pages/Lmy1HealthPage",
+    "pages/Lmy2SleepStatistics",
+    "pages/Lmy3AlarmReminder",
+    "pages/Whw1HeartRatePage",
+    "pages/Whw2TodoPage",
+    "pages/Whw3HelpPage",
+    "pages/Whw4UserSelf",
+    "pages/Jxy1MinePage",
+    "pages/Jxy2MyInfoPage",
+    "pages/Jxy3SitReminderPage",
+    "pages/Jxy4WaterReminderPage",
+    "pages/Yxy1WatchPairingPage",
+    "pages/Yxy2DeviceSelectionPage",
+    "pages/Yxy3HeartRateTestPage",
+    "pages/Yxy4HeartRateResultPage",
+    "pages/Zcy1IntelligentPlay",
+    "pages/Zcy2Information",
+    "pages/Zcy3Homepage",
+    "pages/Zcy4GoalSetting",
+    "pages/IndexAnalyzeTab"
+  ]
+}
