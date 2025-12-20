@@ -1,0 +1,94 @@
+version: '3.8'
+
+services:
+  # MySQL 数据库
+  mysql:
+    image: mysql:8.0
+    container_name: partner-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: root123456
+      MYSQL_DATABASE: partner_finder
+      TZ: Asia/Shanghai
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - partner-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Nacos 服务注册与配置中心
+  nacos:
+    image: nacos/nacos-server:v2.3.0
+    container_name: partner-nacos
+    environment:
+      MODE: standalone
+      SPRING_DATASOURCE_PLATFORM: mysql
+      MYSQL_SERVICE_HOST: mysql
+      MYSQL_SERVICE_PORT: 3306
+      MYSQL_SERVICE_USER: root
+      MYSQL_SERVICE_PASSWORD: root123456
+      MYSQL_SERVICE_DB_NAME: nacos_config
+    ports:
+      - "8848:8848"
+      - "9848:9848"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - partner-network
+
+  # Sentinel Dashboard (可选)
+  sentinel:
+    image: bladex/sentinel-dashboard:1.8.6
+    container_name: partner-sentinel
+    ports:
+      - "8858:8858"
+    networks:
+      - partner-network
+
+  # Zipkin 链路追踪 (可选)
+  zipkin:
+    image: openzipkin/zipkin:latest
+    container_name: partner-zipkin
+    ports:
+      - "9411:9411"
+    networks:
+      - partner-network
+
+  # 用户服务
+  partner-user:
+    build:
+      context: ./partner-user
+      dockerfile: Dockerfile
+    container_name: partner-user
+    environment:
+      NACOS_ADDR: nacos:8848
+      MYSQL_HOST: mysql
+      MYSQL_PORT: 3306
+      MYSQL_DATABASE: partner_finder
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: root123456
+      SPRING_CLOUD_SENTINEL_TRANSPORT_DASHBOARD: sentinel:8858
+      MANAGEMENT_ZIPKIN_TRACING_ENDPOINT: http://zipkin:9411/api/v2/spans
+    ports:
+      - "8081:8081"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      nacos:
+        condition: service_started
+    networks:
+      - partner-network
+    restart: unless-stopped
+
+networks:
+  partner-network:
+    driver: bridge
+
+volumes:
+  mysql_data:

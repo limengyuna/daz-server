@@ -1,0 +1,22 @@
+﻿[INFO] Scanning for projects...
+[INFO] 
+[INFO] --------------------< com.limengyuan:partner-user >---------------------
+[INFO] Building partner-user 0.0.1-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[WARNING] The POM for com.limengyuan:partner-common:jar:0.0.1-SNAPSHOT is invalid, transitive dependencies (if any) will not be available: 1 problem was encountered while building the effective model for com.limengyuan:partner-common:0.0.1-SNAPSHOT
+[ERROR] Invalid packaging for parent POM com.limengyuan:partner-finder:0.0.1-SNAPSHOT, must be "pom" but is "jar" @ com.limengyuan:partner-finder:0.0.1-SNAPSHOT
+
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ partner-user ---
+[INFO] Copying 1 resource from src\main\resources to target\classes
+[INFO] Copying 0 resource from src\main\resources to target\classes
+[INFO] 
+[INFO] --- compiler:3.11.0:compile (default-compile) @ partner-user ---
+[INFO] Nothing to compile - all classes are up to date
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  1.964 s
+[INFO] Finished at: 2025-12-20T18:20:51+08:00
+[INFO] ------------------------------------------------------------------------
