@@ -44,7 +44,7 @@ public class AuthController {
         // 2. 密码加密
         String passwordHash = hashPassword(request.getPassword());
 
-        // 3. 插入用户
+        // 3. 插入用户1
         String insertSql = """
                 INSERT INTO users (username, password_hash, nickname, gender, city, credit_score, status)
                 VALUES (?, ?, ?, ?, ?, 100, 1)
