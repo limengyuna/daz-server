@@ -21,6 +21,8 @@
     <modules>
         <module>partner-common</module>
         <module>partner-user</module>
+        <module>partner-post</module>
+        <module>partner-gateway</module>
     </modules>
 
     <!-- 统一版本管理 -->
