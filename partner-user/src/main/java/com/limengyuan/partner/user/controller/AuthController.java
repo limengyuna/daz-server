@@ -5,6 +5,7 @@ import com.limengyuan.partner.common.dto.LoginResponse;
 import com.limengyuan.partner.common.dto.RegisterRequest;
 import com.limengyuan.partner.common.entity.User;
 import com.limengyuan.partner.common.result.Result;
+import com.limengyuan.partner.common.util.JwtUtils;
 import org.springframework.jdbc.core.BeanPropertyRowMapper;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.web.bind.annotation.*;
@@ -13,7 +14,6 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
 import java.util.List;
-import java.util.UUID;
 
 /**
  * 认证控制器 - 登录注册
@@ -96,8 +96,8 @@ public class AuthController {
             return Result.error("账号已被封禁");
         }
 
-        // 4. 生成 Token (简化版，后续可换成 JWT)
-        String token = UUID.randomUUID().toString().replace("-", "");
+        // 4. 生成 JWT Token
+        String token = JwtUtils.generateToken(user.getUserId());
 
         // 5. 返回登录信息
         LoginResponse response = LoginResponse.builder()

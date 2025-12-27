@@ -1,117 +1,112 @@
 package com.limengyuan.partner.user.controller;
 
+import com.limengyuan.partner.common.dto.UserMeResponse;
 import com.limengyuan.partner.common.entity.User;
 import com.limengyuan.partner.common.result.Result;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.cloud.context.config.annotation.RefreshScope;
+import com.limengyuan.partner.common.util.JwtUtils;
+import com.limengyuan.partner.user.service.UserService;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * 用户控制器
+ * 用户控制器 - 用户信息相关接口
  */
 @RestController
 @RequestMapping("/api/user")
-@RefreshScope
 public class UserController {
 
-    // 模拟用户数据库
-    private final Map<Long, User> userDb = new ConcurrentHashMap<>();
-    private final AtomicLong idGenerator = new AtomicLong(1);
+    private final UserService userService;
 
-    @Value("${spring.application.name}")
-    private String applicationName;
-
-    @Value("${server.port}")
-    private String serverPort;
-
-    /**
-     * 服务信息接口 - 验证服务是否正常启动
-     */
-    @GetMapping("/info")
-    public Result<Map<String, Object>> info() {
-        Map<String, Object> data = Map.of(
-                "service", applicationName,
-                "port", serverPort,
-                "status", "running",
-                "timestamp", LocalDateTime.now().toString(),
-                "message", "用户服务配置验证成功！");
-        return Result.success(data);
+    public UserController(UserService userService) {
+        this.userService = userService;
     }
 
     /**
-     * 健康检查接口
+     * 获取当前登录用户信息
+     * GET /api/user/me
+     * 
+     * 请求头需携带: Authorization: Bearer {token}
+     * 或 Cookie 中包含 token
+     * 
+     * 响应: { user: {...}, newToken: "..." }
+     * newToken 仅当 Token 剩余有效期 < 2 天时返回，前端需更新本地存储
      */
-    @GetMapping("/health")
-    public Result<String> health() {
-        return Result.success("UP");
-    }
+    @GetMapping("/me")
+    public Result<UserMeResponse> getCurrentUser(
+            @RequestHeader(value = "Authorization", required = false) String authHeader,
+            @CookieValue(value = "token", required = false) String cookieToken) {
 
-    /**
-     * 创建用户
-     */
-    @PostMapping
-    public Result<User> createUser(@RequestBody User user) {
-        Long id = idGenerator.getAndIncrement();
-        user.setUserId(id);
-        user.setCreatedAt(LocalDateTime.now());
-        user.setUpdatedAt(LocalDateTime.now());
-        user.setStatus(1);
-        userDb.put(id, user);
-        return Result.success("创建成功", user);
+        // 优先从 Authorization Header 获取，其次从 Cookie 获取
+        String token = null;
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            token = authHeader;
+        } else if (cookieToken != null) {
+            token = cookieToken;
+        }
+
+        if (token == null) {
+            return Result.error("未登录或 Token 无效");
+        }
+
+        // 解析 Token 获取用户 ID
+        Long userId = JwtUtils.getUserIdFromToken(token);
+        if (userId == null) {
+            return Result.error("Token 无效或已过期");
+        }
+
+        // 获取用户信息
+        Result<User> userResult = userService.getUserById(userId);
+        if (userResult.getCode() != 200) {
+            return Result.error(userResult.getMessage());
+        }
+
+        // 构建响应
+        UserMeResponse response = UserMeResponse.builder()
+                .user(userResult.getData())
+                .build();
+
+        // 检查是否需要刷新 Token（剩余有效期 < 2 天）
+        if (JwtUtils.shouldRefreshToken(token)) {
+            response.setNewToken(JwtUtils.generateToken(userId));
+        }
+
+        return Result.success(response);
     }
 
     /**
      * 获取用户详情
+     * GET /api/user/{id}
      */
     @GetMapping("/{id}")
-    public Result<User> getUser(@PathVariable Long id) {
-        User user = userDb.get(id);
-        if (user == null) {
-            return Result.error("用户不存在");
-        }
-        return Result.success(user);
+    public Result<User> getUser(@PathVariable("id") Long userId) {
+        return userService.getUserById(userId);
     }
 
     /**
      * 获取用户列表
+     * GET /api/user/list
      */
     @GetMapping("/list")
     public Result<List<User>> listUsers() {
-        return Result.success(new ArrayList<>(userDb.values()));
+        return userService.getAllUsers();
     }
 
     /**
-     * 更新用户
+     * 更新用户信息
+     * PUT /api/user/{id}
      */
     @PutMapping("/{id}")
-    public Result<User> updateUser(@PathVariable Long id, @RequestBody User user) {
-        User existingUser = userDb.get(id);
-        if (existingUser == null) {
-            return Result.error("用户不存在");
-        }
-        user.setUserId(id);
-        user.setCreatedAt(existingUser.getCreatedAt());
-        user.setUpdatedAt(LocalDateTime.now());
-        userDb.put(id, user);
-        return Result.success("更新成功", user);
+    public Result<User> updateUser(@PathVariable("id") Long userId, @RequestBody User user) {
+        return userService.updateUser(userId, user);
     }
 
     /**
      * 删除用户
+     * DELETE /api/user/{id}
      */
     @DeleteMapping("/{id}")
-    public Result<Void> deleteUser(@PathVariable Long id) {
-        User removed = userDb.remove(id);
-        if (removed == null) {
-            return Result.error("用户不存在");
-        }
-        return Result.success("删除成功", null);
+    public Result<Void> deleteUser(@PathVariable("id") Long userId) {
+        return userService.deleteUser(userId);
     }
 }
