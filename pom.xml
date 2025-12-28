@@ -23,6 +23,7 @@
         <module>partner-user</module>
         <module>partner-post</module>
         <module>partner-gateway</module>
+        <module>partner-file-service</module>
     </modules>
 
     <!-- 统一版本管理 -->

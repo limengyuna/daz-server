@@ -9,6 +9,8 @@ import com.limengyuan.partner.post.mapper.ActivityMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
+
 /**
  * 活动服务层 - 封装业务逻辑
  */
@@ -86,5 +88,16 @@ public class ActivityService {
         return activityMapper.findById(activityId)
                 .map(Result::success)
                 .orElse(Result.error("活动不存在"));
+    }
+
+    /**
+     * 获取用户发布的活动列表
+     * 
+     * @param userId 用户ID
+     * @return 活动列表
+     */
+    public Result<List<Activity>> getActivitiesByUser(Long userId) {
+        List<Activity> activities = activityMapper.findByInitiatorId(userId);
+        return Result.success(activities);
     }
 }

@@ -10,6 +10,7 @@ import org.springframework.stereotype.Repository;
 import java.sql.PreparedStatement;
 import java.sql.Statement;
 import java.sql.Timestamp;
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -67,6 +68,18 @@ public class ActivityMapper {
             return Optional.ofNullable(activity);
         } catch (Exception e) {
             return Optional.empty();
+        }
+    }
+
+    /**
+     * 根据发起人ID查询活动列表
+     */
+    public List<Activity> findByInitiatorId(Long initiatorId) {
+        String sql = "SELECT * FROM activities WHERE initiator_id = ? ORDER BY created_at DESC";
+        try {
+            return jdbcTemplate.query(sql, new BeanPropertyRowMapper<>(Activity.class), initiatorId);
+        } catch (Exception e) {
+            return List.of();
         }
     }
 }
