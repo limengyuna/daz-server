@@ -1,5 +1,6 @@
 package com.limengyuan.partner.post.mapper;
 
+import com.limengyuan.partner.common.dto.ActivityVO;
 import com.limengyuan.partner.common.entity.Activity;
 import org.springframework.jdbc.core.BeanPropertyRowMapper;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -78,6 +79,24 @@ public class ActivityMapper {
         String sql = "SELECT * FROM activities WHERE initiator_id = ? ORDER BY created_at DESC";
         try {
             return jdbcTemplate.query(sql, new BeanPropertyRowMapper<>(Activity.class), initiatorId);
+        } catch (Exception e) {
+            return List.of();
+        }
+    }
+
+    /**
+     * 根据发起人ID查询活动列表，包含发布者信息
+     */
+    public List<ActivityVO> findByInitiatorIdWithUser(Long initiatorId) {
+        String sql = """
+                SELECT a.*, u.nickname AS initiator_nickname, u.avatar_url AS initiator_avatar
+                FROM activities a
+                LEFT JOIN users u ON a.initiator_id = u.user_id
+                WHERE a.initiator_id = ?
+                ORDER BY a.created_at DESC
+                """;
+        try {
+            return jdbcTemplate.query(sql, new BeanPropertyRowMapper<>(ActivityVO.class), initiatorId);
         } catch (Exception e) {
             return List.of();
         }

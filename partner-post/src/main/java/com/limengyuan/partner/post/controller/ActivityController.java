@@ -1,5 +1,6 @@
 package com.limengyuan.partner.post.controller;
 
+import com.limengyuan.partner.common.dto.ActivityVO;
 import com.limengyuan.partner.common.dto.CreateActivityRequest;
 import com.limengyuan.partner.common.entity.Activity;
 import com.limengyuan.partner.common.result.Result;
@@ -48,7 +49,7 @@ public class ActivityController {
      * 请求头需携带: Authorization: Bearer {token}
      */
     @GetMapping("/my")
-    public Result<List<Activity>> getMyActivities(
+    public Result<List<ActivityVO>> getMyActivities(
             @RequestHeader(value = "Authorization", required = false) String authHeader) {
 
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {

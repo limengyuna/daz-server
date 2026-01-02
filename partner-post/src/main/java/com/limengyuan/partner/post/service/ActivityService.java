@@ -2,6 +2,7 @@ package com.limengyuan.partner.post.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.limengyuan.partner.common.dto.ActivityVO;
 import com.limengyuan.partner.common.dto.CreateActivityRequest;
 import com.limengyuan.partner.common.entity.Activity;
 import com.limengyuan.partner.common.result.Result;
@@ -96,8 +97,8 @@ public class ActivityService {
      * @param userId 用户ID
      * @return 活动列表
      */
-    public Result<List<Activity>> getActivitiesByUser(Long userId) {
-        List<Activity> activities = activityMapper.findByInitiatorId(userId);
+    public Result<List<ActivityVO>> getActivitiesByUser(Long userId) {
+        List<ActivityVO> activities = activityMapper.findByInitiatorIdWithUser(userId);
         return Result.success(activities);
     }
 }
