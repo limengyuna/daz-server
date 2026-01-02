@@ -89,7 +89,7 @@ public class ActivityMapper {
      */
     public List<ActivityVO> findByInitiatorIdWithUser(Long initiatorId) {
         String sql = """
-                SELECT a.*, u.nickname AS initiator_nickname, u.avatar_url AS initiator_avatar
+                SELECT a.*, u.nickname AS initiator_nickname, u.avatar_url AS initiator_avatar, u.credit_score AS initiator_credit_score
                 FROM activities a
                 LEFT JOIN users u ON a.initiator_id = u.user_id
                 WHERE a.initiator_id = ?

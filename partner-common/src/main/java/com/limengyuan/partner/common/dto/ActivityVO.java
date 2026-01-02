@@ -110,4 +110,9 @@ public class ActivityVO {
      * 发起人头像
      */
     private String initiatorAvatar;
+
+    /**
+     * 发起人信用分
+     */
+    private Integer initiatorCreditScore;
 }
