@@ -73,6 +73,30 @@ public class ActivityMapper {
     }
 
     /**
+     * 根据ID查询活动，包含发布者信息
+     */
+    public Optional<ActivityVO> findByIdWithUser(Long activityId) {
+        String sql = """
+                SELECT a.*,
+                       u.nickname AS initiator_nickname,
+                       u.avatar_url AS initiator_avatar,
+                       u.credit_score AS initiator_credit_score,
+                       (SELECT COUNT(*) FROM participants p
+                        WHERE p.activity_id = a.activity_id AND p.status = 1) AS current_participants
+                FROM activities a
+                LEFT JOIN users u ON a.initiator_id = u.user_id
+                WHERE a.activity_id = ?
+                """;
+        try {
+            ActivityVO activity = jdbcTemplate.queryForObject(sql,
+                    new BeanPropertyRowMapper<>(ActivityVO.class), activityId);
+            return Optional.ofNullable(activity);
+        } catch (Exception e) {
+            return Optional.empty();
+        }
+    }
+
+    /**
      * 根据发起人ID查询活动列表
      */
     public List<Activity> findByInitiatorId(Long initiatorId) {
@@ -89,7 +113,12 @@ public class ActivityMapper {
      */
     public List<ActivityVO> findByInitiatorIdWithUser(Long initiatorId) {
         String sql = """
-                SELECT a.*, u.nickname AS initiator_nickname, u.avatar_url AS initiator_avatar, u.credit_score AS initiator_credit_score
+                SELECT a.*,
+                       u.nickname AS initiator_nickname,
+                       u.avatar_url AS initiator_avatar,
+                       u.credit_score AS initiator_credit_score,
+                       (SELECT COUNT(*) FROM participants p
+                        WHERE p.activity_id = a.activity_id AND p.status = 1) AS current_participants
                 FROM activities a
                 LEFT JOIN users u ON a.initiator_id = u.user_id
                 WHERE a.initiator_id = ?
@@ -100,5 +129,41 @@ public class ActivityMapper {
         } catch (Exception e) {
             return List.of();
         }
+    }
+
+    /**
+     * 分页查询所有活动，包含发布者信息
+     * 
+     * @param page 页码 (从0开始)
+     * @param size 每页数量
+     */
+    public List<ActivityVO> findAllWithUser(int page, int size) {
+        String sql = """
+                SELECT a.*,
+                       u.nickname AS initiator_nickname,
+                       u.avatar_url AS initiator_avatar,
+                       u.credit_score AS initiator_credit_score,
+                       (SELECT COUNT(*) FROM participants p
+                        WHERE p.activity_id = a.activity_id AND p.status = 1) AS current_participants
+                FROM activities a
+                LEFT JOIN users u ON a.initiator_id = u.user_id
+                ORDER BY a.created_at DESC
+                LIMIT ? OFFSET ?
+                """;
+        try {
+            int offset = page * size;
+            return jdbcTemplate.query(sql, new BeanPropertyRowMapper<>(ActivityVO.class), size, offset);
+        } catch (Exception e) {
+            return List.of();
+        }
+    }
+
+    /**
+     * 查询活动总数
+     */
+    public long countAll() {
+        String sql = "SELECT COUNT(*) FROM activities";
+        Long count = jdbcTemplate.queryForObject(sql, Long.class);
+        return count != null ? count : 0;
     }
 }

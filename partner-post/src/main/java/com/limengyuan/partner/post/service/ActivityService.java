@@ -85,8 +85,8 @@ public class ActivityService {
      * @param activityId 活动ID
      * @return 活动详情
      */
-    public Result<Activity> getActivity(Long activityId) {
-        return activityMapper.findById(activityId)
+    public Result<ActivityVO> getActivity(Long activityId) {
+        return activityMapper.findByIdWithUser(activityId)
                 .map(Result::success)
                 .orElse(Result.error("活动不存在"));
     }
@@ -99,6 +99,18 @@ public class ActivityService {
      */
     public Result<List<ActivityVO>> getActivitiesByUser(Long userId) {
         List<ActivityVO> activities = activityMapper.findByInitiatorIdWithUser(userId);
+        return Result.success(activities);
+    }
+
+    /**
+     * 分页获取所有活动列表
+     * 
+     * @param page 页码 (从0开始)
+     * @param size 每页数量
+     * @return 活动列表
+     */
+    public Result<List<ActivityVO>> getAllActivities(int page, int size) {
+        List<ActivityVO> activities = activityMapper.findAllWithUser(page, size);
         return Result.success(activities);
     }
 }

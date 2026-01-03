@@ -38,7 +38,7 @@ public class ActivityController {
      * GET /api/activities/{id}
      */
     @GetMapping("/{id}")
-    public Result<Activity> getActivity(@PathVariable("id") Long activityId) {
+    public Result<ActivityVO> getActivity(@PathVariable("id") Long activityId) {
         return activityService.getActivity(activityId);
     }
 
@@ -63,5 +63,19 @@ public class ActivityController {
         }
 
         return activityService.getActivitiesByUser(userId);
+    }
+
+    /**
+     * 获取所有活动列表 (分页)
+     * GET /api/activities?page=0&size=5
+     * 
+     * @param page 页码，从0开始，默认0
+     * @param size 每页数量，默认5
+     */
+    @GetMapping
+    public Result<List<ActivityVO>> getAllActivities(
+            @RequestParam(value = "page", defaultValue = "0") int page,
+            @RequestParam(value = "size", defaultValue = "5") int size) {
+        return activityService.getAllActivities(page, size);
     }
 }

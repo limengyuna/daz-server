@@ -115,4 +115,9 @@ public class ActivityVO {
      * 发起人信用分
      */
     private Integer initiatorCreditScore;
+
+    /**
+     * 当前参与人数
+     */
+    private Integer currentParticipants;
 }
