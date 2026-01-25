@@ -163,4 +163,41 @@ public class ParticipantMapper {
             return List.of();
         }
     }
+
+    /**
+     * 统计某活动的申请总数
+     */
+    public int countByActivityId(Long activityId) {
+        String sql = "SELECT COUNT(*) FROM participants WHERE activity_id = ?";
+        Integer count = jdbcTemplate.queryForObject(sql, Integer.class, activityId);
+        return count != null ? count : 0;
+    }
+
+    /**
+     * 分页查询活动的参与者（带用户信息）
+     *
+     * @param activityId 活动ID
+     * @param offset     偏移量
+     * @param limit      每页数量
+     * @return 参与者列表
+     */
+    public List<ParticipantVO> findByActivityIdWithUserPaged(Long activityId, int offset, int limit) {
+        String sql = """
+                SELECT p.*,
+                       u.nickname,
+                       u.avatar_url,
+                       u.credit_score,
+                       u.gender
+                FROM participants p
+                LEFT JOIN users u ON p.user_id = u.user_id
+                WHERE p.activity_id = ?
+                ORDER BY p.created_at ASC
+                LIMIT ? OFFSET ?
+                """;
+        try {
+            return jdbcTemplate.query(sql, new BeanPropertyRowMapper<>(ParticipantVO.class), activityId, limit, offset);
+        } catch (Exception e) {
+            return List.of();
+        }
+    }
 }

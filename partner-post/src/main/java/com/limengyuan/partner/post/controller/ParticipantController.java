@@ -1,8 +1,9 @@
 package com.limengyuan.partner.post.controller;
 
+import com.limengyuan.partner.common.dto.ActivityWithApplicationsVO;
 import com.limengyuan.partner.common.dto.JoinActivityRequest;
 import com.limengyuan.partner.common.dto.MyApplicationVO;
-import com.limengyuan.partner.common.dto.ParticipantVO;
+import com.limengyuan.partner.common.dto.ParticipantPageVO;
 import com.limengyuan.partner.common.dto.ReviewRequest;
 import com.limengyuan.partner.common.entity.Participant;
 import com.limengyuan.partner.common.result.Result;
@@ -42,12 +43,18 @@ public class ParticipantController {
     }
 
     /**
-     * 获取活动参与者列表
-     * GET /api/activities/{id}/participants
+     * 获取活动参与者列表（分页）
+     * GET /api/activities/{id}/participants?page=0&size=7
+     *
+     * @param activityId 活动ID
+     * @param page       页码，从0开始，默认0
+     * @param size       每页数量，默认7
      */
     @GetMapping("/activities/{id}/participants")
-    public Result<List<ParticipantVO>> getParticipants(
+    public Result<ParticipantPageVO> getParticipants(
             @PathVariable("id") Long activityId,
+            @RequestParam(value = "page", defaultValue = "0") int page,
+            @RequestParam(value = "size", defaultValue = "7") int size,
             @RequestHeader(value = "Authorization", required = false) String authHeader) {
 
         Long userId = getUserIdFromAuth(authHeader);
@@ -55,7 +62,7 @@ public class ParticipantController {
             return Result.error("请先登录");
         }
 
-        return participantService.getParticipants(activityId);
+        return participantService.getParticipantsPaged(activityId, page, size);
     }
 
     /**
@@ -108,6 +115,25 @@ public class ParticipantController {
         }
 
         return participantService.getMyApplications(userId);
+    }
+
+    /**
+     * 获取我发布的活动及其申请列表
+     * GET /api/my/activities-with-applications
+     * 
+     * 每个活动默认返回前7条申请记录，附带申请总数。
+     * 前端可通过 GET /api/activities/{id}/participants?page=1&size=7 加载更多。
+     */
+    @GetMapping("/my/activities-with-applications")
+    public Result<List<ActivityWithApplicationsVO>> getMyActivitiesWithApplications(
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+
+        Long userId = getUserIdFromAuth(authHeader);
+        if (userId == null) {
+            return Result.error("请先登录");
+        }
+
+        return participantService.getMyActivitiesWithApplications(userId);
     }
 
     /**

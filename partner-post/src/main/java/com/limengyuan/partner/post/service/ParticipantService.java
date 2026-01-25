@@ -1,7 +1,10 @@
 package com.limengyuan.partner.post.service;
 
+import com.limengyuan.partner.common.dto.ActivityVO;
+import com.limengyuan.partner.common.dto.ActivityWithApplicationsVO;
 import com.limengyuan.partner.common.dto.JoinActivityRequest;
 import com.limengyuan.partner.common.dto.MyApplicationVO;
+import com.limengyuan.partner.common.dto.ParticipantPageVO;
 import com.limengyuan.partner.common.dto.ParticipantVO;
 import com.limengyuan.partner.common.dto.ReviewRequest;
 import com.limengyuan.partner.common.entity.Activity;
@@ -13,6 +16,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -309,5 +313,86 @@ public class ParticipantService {
     public Result<List<MyApplicationVO>> getMyApplications(Long userId) {
         List<MyApplicationVO> applications = participantMapper.findByUserIdWithActivity(userId);
         return Result.success(applications);
+    }
+
+    /**
+     * 获取用户发布的活动及其申请列表
+     * 每个活动默认返回前7条申请记录
+     *
+     * @param userId 用户ID
+     * @return 活动及申请列表
+     */
+    public Result<List<ActivityWithApplicationsVO>> getMyActivitiesWithApplications(Long userId) {
+        // 1. 获取用户发布的所有活动
+        List<ActivityVO> activities = activityMapper.findByInitiatorIdWithUser(userId);
+
+        // 2. 为每个活动获取申请列表和申请总数
+        List<ActivityWithApplicationsVO> result = new ArrayList<>();
+        for (ActivityVO activity : activities) {
+            // 获取前7条申请记录
+            List<ParticipantVO> applications = participantMapper.findByActivityIdWithUserPaged(
+                    activity.getActivityId(), 0, 7);
+            // 获取申请总数
+            int totalApplications = participantMapper.countByActivityId(activity.getActivityId());
+
+            // 构建聚合对象
+            ActivityWithApplicationsVO vo = ActivityWithApplicationsVO.builder()
+                    .activityId(activity.getActivityId())
+                    .initiatorId(activity.getInitiatorId())
+                    .categoryId(activity.getCategoryId())
+                    .title(activity.getTitle())
+                    .description(activity.getDescription())
+                    .images(activity.getImages())
+                    .locationName(activity.getLocationName())
+                    .locationAddress(activity.getLocationAddress())
+                    .latitude(activity.getLatitude())
+                    .longitude(activity.getLongitude())
+                    .startTime(activity.getStartTime())
+                    .maxParticipants(activity.getMaxParticipants())
+                    .paymentType(activity.getPaymentType())
+                    .status(activity.getStatus())
+                    .createdAt(activity.getCreatedAt())
+                    .updatedAt(activity.getUpdatedAt())
+                    .initiatorNickname(activity.getInitiatorNickname())
+                    .initiatorAvatar(activity.getInitiatorAvatar())
+                    .initiatorCreditScore(activity.getInitiatorCreditScore())
+                    .currentParticipants(activity.getCurrentParticipants())
+                    .applications(applications)
+                    .totalApplications(totalApplications)
+                    .build();
+
+            result.add(vo);
+        }
+
+        return Result.success(result);
+    }
+
+    /**
+     * 分页获取活动的参与者列表
+     *
+     * @param activityId 活动ID
+     * @param page       页码（从0开始）
+     * @param size       每页数量
+     * @return 分页结果
+     */
+    public Result<ParticipantPageVO> getParticipantsPaged(Long activityId, int page, int size) {
+        // 检查活动是否存在
+        Optional<Activity> activityOpt = activityMapper.findById(activityId);
+        if (activityOpt.isEmpty()) {
+            return Result.error("活动不存在");
+        }
+
+        int offset = page * size;
+        List<ParticipantVO> participants = participantMapper.findByActivityIdWithUserPaged(activityId, offset, size);
+        int total = participantMapper.countByActivityId(activityId);
+
+        ParticipantPageVO pageVO = ParticipantPageVO.builder()
+                .list(participants)
+                .total(total)
+                .page(page)
+                .size(size)
+                .build();
+
+        return Result.success(pageVO);
     }
 }
