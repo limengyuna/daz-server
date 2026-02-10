@@ -66,6 +66,17 @@ public class ActivityController {
     }
 
     /**
+     * 根据用户ID获取该用户发布的活动列表（用于查看其他用户的活动帖子）
+     * GET /api/activities/user/{userId}
+     *
+     * @param userId 目标用户ID
+     */
+    @GetMapping("/user/{userId}")
+    public Result<List<ActivityVO>> getActivitiesByUserId(@PathVariable("userId") Long userId) {
+        return activityService.getActivitiesByUser(userId);
+    }
+
+    /**
      * 获取所有活动列表 (分页)
      * GET /api/activities?page=0&size=5
      * 

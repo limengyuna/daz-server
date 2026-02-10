@@ -1,5 +1,6 @@
 package com.limengyuan.partner.user.service;
 
+import com.limengyuan.partner.common.dto.UserProfileVO;
 import com.limengyuan.partner.common.entity.User;
 import com.limengyuan.partner.common.result.Result;
 import com.limengyuan.partner.user.mapper.UserMapper;
@@ -22,7 +23,7 @@ public class UserService {
     }
 
     /**
-     * 获取用户详情
+     * 获取用户详情（内部使用，包含完整信息，密码除外）
      */
     public Result<User> getUserById(Long userId) {
         return userMapper.findById(userId)
@@ -30,6 +31,29 @@ public class UserService {
                     // 不返回密码
                     user.setPasswordHash(null);
                     return Result.success(user);
+                })
+                .orElse(Result.error("用户不存在"));
+    }
+
+    /**
+     * 获取用户公开信息（用于查看其他用户的资料，不包含敏感字段）
+     */
+    public Result<UserProfileVO> getUserProfileById(Long userId) {
+        return userMapper.findById(userId)
+                .map(user -> {
+                    UserProfileVO profile = UserProfileVO.builder()
+                            .userId(user.getUserId())
+                            .nickname(user.getNickname())
+                            .avatarUrl(user.getAvatarUrl())
+                            .gender(user.getGender())
+                            .birthday(user.getBirthday())
+                            .city(user.getCity())
+                            .bio(user.getBio())
+                            .tags(user.getTags())
+                            .creditScore(user.getCreditScore())
+                            .createdAt(user.getCreatedAt())
+                            .build();
+                    return Result.success(profile);
                 })
                 .orElse(Result.error("用户不存在"));
     }

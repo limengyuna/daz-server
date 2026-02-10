@@ -1,6 +1,7 @@
 package com.limengyuan.partner.user.controller;
 
 import com.limengyuan.partner.common.dto.UserMeResponse;
+import com.limengyuan.partner.common.dto.UserProfileVO;
 import com.limengyuan.partner.common.entity.User;
 import com.limengyuan.partner.common.result.Result;
 import com.limengyuan.partner.common.util.JwtUtils;
@@ -75,12 +76,12 @@ public class UserController {
     }
 
     /**
-     * 获取用户详情
+     * 获取用户公开信息（不含敏感字段）
      * GET /api/user/{id}
      */
     @GetMapping("/{id}")
-    public Result<User> getUser(@PathVariable("id") Long userId) {
-        return userService.getUserById(userId);
+    public Result<UserProfileVO> getUser(@PathVariable("id") Long userId) {
+        return userService.getUserProfileById(userId);
     }
 
     /**
