@@ -143,6 +143,21 @@ CREATE TABLE `reviews`  (
 ) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '用户评价表' ROW_FORMAT = Dynamic;
 
 -- ----------------------------
+-- Table structure for user_follows
+-- ----------------------------
+DROP TABLE IF EXISTS `user_follows`;
+CREATE TABLE `user_follows`  (
+  `follow_id` bigint UNSIGNED NOT NULL AUTO_INCREMENT,
+  `follower_id` bigint UNSIGNED NOT NULL COMMENT '关注者ID (谁关注了)',
+  `followee_id` bigint UNSIGNED NOT NULL COMMENT '被关注者ID (被谁关注)',
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP COMMENT '关注时间',
+  PRIMARY KEY (`follow_id`) USING BTREE,
+  UNIQUE INDEX `uniq_follow`(`follower_id` ASC, `followee_id` ASC) USING BTREE COMMENT '防止重复关注',
+  INDEX `idx_follower`(`follower_id` ASC) USING BTREE COMMENT '查询某用户的关注列表',
+  INDEX `idx_followee`(`followee_id` ASC) USING BTREE COMMENT '查询某用户的粉丝列表'
+) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '用户关注关系表' ROW_FORMAT = Dynamic;
+
+-- ----------------------------
 -- Table structure for users
 -- ----------------------------
 DROP TABLE IF EXISTS `users`;

@@ -86,4 +86,14 @@ public class User {
      * 更新时间
      */
     private LocalDateTime updatedAt;
+
+    /**
+     * 关注数量（非数据库字段，用于返回给前端）
+     */
+    private Integer followingCount;
+
+    /**
+     * 粉丝数量（非数据库字段，用于返回给前端）
+     */
+    private Integer followersCount;
 }
