@@ -11,6 +11,7 @@ import org.springframework.stereotype.Repository;
 import java.sql.PreparedStatement;
 import java.sql.Statement;
 import java.sql.Timestamp;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -132,13 +133,14 @@ public class ActivityMapper {
     }
 
     /**
-     * 分页查询所有活动，包含发布者信息
+     * 分页查询所有活动，包含发布者信息，支持按分类筛选
      * 
-     * @param page 页码 (从0开始)
-     * @param size 每页数量
+     * @param page       页码 (从0开始)
+     * @param size       每页数量
+     * @param categoryId 分类ID，为null时查询所有分类
      */
-    public List<ActivityVO> findAllWithUser(int page, int size) {
-        String sql = """
+    public List<ActivityVO> findAllWithUser(int page, int size, Integer categoryId) {
+        StringBuilder sql = new StringBuilder("""
                 SELECT a.*,
                        u.nickname AS initiator_nickname,
                        u.avatar_url AS initiator_avatar,
@@ -147,23 +149,41 @@ public class ActivityMapper {
                         WHERE p.activity_id = a.activity_id AND p.status = 1) AS current_participants
                 FROM activities a
                 LEFT JOIN users u ON a.initiator_id = u.user_id
-                ORDER BY a.created_at DESC
-                LIMIT ? OFFSET ?
-                """;
+                """);
+
+        List<Object> params = new ArrayList<>();
+        if (categoryId != null) {
+            sql.append("WHERE a.category_id = ? ");
+            params.add(categoryId);
+        }
+        sql.append("ORDER BY a.created_at DESC LIMIT ? OFFSET ?");
+        int offset = page * size;
+        params.add(size);
+        params.add(offset);
+
         try {
-            int offset = page * size;
-            return jdbcTemplate.query(sql, new BeanPropertyRowMapper<>(ActivityVO.class), size, offset);
+            return jdbcTemplate.query(sql.toString(),
+                    new BeanPropertyRowMapper<>(ActivityVO.class), params.toArray());
         } catch (Exception e) {
             return List.of();
         }
     }
 
     /**
-     * 查询活动总数
+     * 查询活动总数，支持按分类筛选
+     *
+     * @param categoryId 分类ID，为null时统计所有
      */
-    public long countAll() {
-        String sql = "SELECT COUNT(*) FROM activities";
-        Long count = jdbcTemplate.queryForObject(sql, Long.class);
+    public long countAll(Integer categoryId) {
+        StringBuilder sql = new StringBuilder("SELECT COUNT(*) FROM activities");
+        List<Object> params = new ArrayList<>();
+
+        if (categoryId != null) {
+            sql.append(" WHERE category_id = ?");
+            params.add(categoryId);
+        }
+
+        Long count = jdbcTemplate.queryForObject(sql.toString(), Long.class, params.toArray());
         return count != null ? count : 0;
     }
 }

@@ -2,6 +2,7 @@ package com.limengyuan.partner.post.controller;
 
 import com.limengyuan.partner.common.dto.ActivityVO;
 import com.limengyuan.partner.common.dto.CreateActivityRequest;
+import com.limengyuan.partner.common.dto.PageResult;
 import com.limengyuan.partner.common.entity.Activity;
 import com.limengyuan.partner.common.result.Result;
 import com.limengyuan.partner.common.util.JwtUtils;
@@ -77,16 +78,18 @@ public class ActivityController {
     }
 
     /**
-     * 获取所有活动列表 (分页)
-     * GET /api/activities?page=0&size=5
+     * 获取所有活动列表 (分页，支持按分类筛选)
+     * GET /api/activities?page=0&size=5&categoryId=1
      * 
-     * @param page 页码，从0开始，默认0
-     * @param size 每页数量，默认5
+     * @param page       页码，从0开始，默认0
+     * @param size       每页数量，默认5
+     * @param categoryId 分类ID，可选，不传则查询所有分类
      */
     @GetMapping
-    public Result<List<ActivityVO>> getAllActivities(
+    public Result<PageResult<ActivityVO>> getAllActivities(
             @RequestParam(value = "page", defaultValue = "0") int page,
-            @RequestParam(value = "size", defaultValue = "5") int size) {
-        return activityService.getAllActivities(page, size);
+            @RequestParam(value = "size", defaultValue = "5") int size,
+            @RequestParam(value = "categoryId", required = false) Integer categoryId) {
+        return activityService.getAllActivities(page, size, categoryId);
     }
 }

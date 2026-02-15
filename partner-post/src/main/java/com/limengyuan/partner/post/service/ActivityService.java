@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.limengyuan.partner.common.dto.ActivityVO;
 import com.limengyuan.partner.common.dto.CreateActivityRequest;
+import com.limengyuan.partner.common.dto.PageResult;
 import com.limengyuan.partner.common.entity.Activity;
 import com.limengyuan.partner.common.result.Result;
 import com.limengyuan.partner.post.mapper.ActivityMapper;
@@ -103,14 +104,16 @@ public class ActivityService {
     }
 
     /**
-     * 分页获取所有活动列表
+     * 分页获取所有活动列表，支持按分类筛选
      * 
-     * @param page 页码 (从0开始)
-     * @param size 每页数量
-     * @return 活动列表
+     * @param page       页码 (从0开始)
+     * @param size       每页数量
+     * @param categoryId 分类ID，为null时查询所有
+     * @return 分页结果，包含总数信息
      */
-    public Result<List<ActivityVO>> getAllActivities(int page, int size) {
-        List<ActivityVO> activities = activityMapper.findAllWithUser(page, size);
-        return Result.success(activities);
+    public Result<PageResult<ActivityVO>> getAllActivities(int page, int size, Integer categoryId) {
+        List<ActivityVO> activities = activityMapper.findAllWithUser(page, size, categoryId);
+        long total = activityMapper.countAll(categoryId);
+        return Result.success(PageResult.of(activities, total, page, size));
     }
 }
