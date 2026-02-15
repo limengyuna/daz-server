@@ -1,8 +1,6 @@
 package com.limengyuan.partner.user.mapper;
 
 import com.limengyuan.partner.common.entity.User;
-import com.limengyuan.partner.common.entity.UserFollow;
-import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Repository;
@@ -16,13 +14,6 @@ import java.util.List;
 public class UserFollowMapper {
 
     private final JdbcTemplate jdbcTemplate;
-
-    private static final RowMapper<UserFollow> FOLLOW_ROW_MAPPER = (rs, rowNum) -> UserFollow.builder()
-            .followId(rs.getLong("follow_id"))
-            .followerId(rs.getLong("follower_id"))
-            .followeeId(rs.getLong("followee_id"))
-            .createdAt(rs.getTimestamp("created_at") != null ? rs.getTimestamp("created_at").toLocalDateTime() : null)
-            .build();
 
     private static final RowMapper<User> USER_ROW_MAPPER = (rs, rowNum) -> User.builder()
             .userId(rs.getLong("user_id"))
