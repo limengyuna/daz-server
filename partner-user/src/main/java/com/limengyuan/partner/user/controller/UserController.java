@@ -1,5 +1,6 @@
 package com.limengyuan.partner.user.controller;
 
+import com.limengyuan.partner.common.dto.PageResult;
 import com.limengyuan.partner.common.dto.UserMeResponse;
 import com.limengyuan.partner.common.dto.UserProfileVO;
 import com.limengyuan.partner.common.entity.User;
@@ -188,13 +189,16 @@ public class UserController {
     }
 
     /**
-     * 获取关注列表（我关注的人）
-     * GET /api/user/following
+     * 获取关注列表（我关注的人）- 分页
+     * GET /api/user/following?page=0&size=10
      * 
      * 请求头需携带: Authorization: Bearer {token}
+     * 请求参数: page - 页码(从0开始，默认0), size - 每页数量(默认10)
      */
     @GetMapping("/following")
-    public Result<List<User>> getFollowingList(
+    public Result<PageResult<User>> getFollowingList(
+            @RequestParam(value = "page", defaultValue = "0") int page,
+            @RequestParam(value = "size", defaultValue = "10") int size,
             @RequestHeader(value = "Authorization", required = false) String authHeader,
             @CookieValue(value = "token", required = false) String cookieToken) {
 
@@ -204,17 +208,28 @@ public class UserController {
             return Result.error("未登录或 Token 无效");
         }
 
-        return userFollowService.getFollowingList(currentUserId);
+        // 参数校验
+        if (page < 0) {
+            page = 0;
+        }
+        if (size <= 0 || size > 100) {
+            size = 10;
+        }
+
+        return userFollowService.getFollowingList(currentUserId, page, size);
     }
 
     /**
-     * 获取粉丝列表（关注我的人）
-     * GET /api/user/followers
+     * 获取粉丝列表（关注我的人）- 分页
+     * GET /api/user/followers?page=0&size=10
      * 
      * 请求头需携带: Authorization: Bearer {token}
+     * 请求参数: page - 页码(从0开始，默认0), size - 每页数量(默认10)
      */
     @GetMapping("/followers")
-    public Result<List<User>> getFollowersList(
+    public Result<PageResult<User>> getFollowersList(
+            @RequestParam(value = "page", defaultValue = "0") int page,
+            @RequestParam(value = "size", defaultValue = "10") int size,
             @RequestHeader(value = "Authorization", required = false) String authHeader,
             @CookieValue(value = "token", required = false) String cookieToken) {
 
@@ -224,25 +239,57 @@ public class UserController {
             return Result.error("未登录或 Token 无效");
         }
 
-        return userFollowService.getFollowersList(currentUserId);
+        // 参数校验
+        if (page < 0) {
+            page = 0;
+        }
+        if (size <= 0 || size > 100) {
+            size = 10;
+        }
+
+        return userFollowService.getFollowersList(currentUserId, page, size);
     }
 
     /**
-     * 获取指定用户的关注列表
-     * GET /api/user/{userId}/following
+     * 获取指定用户的关注列表 - 分页
+     * GET /api/user/{userId}/following?page=0&size=10
      */
     @GetMapping("/{userId}/following")
-    public Result<List<User>> getUserFollowingList(@PathVariable("userId") Long userId) {
-        return userFollowService.getFollowingList(userId);
+    public Result<PageResult<User>> getUserFollowingList(
+            @PathVariable("userId") Long userId,
+            @RequestParam(value = "page", defaultValue = "0") int page,
+            @RequestParam(value = "size", defaultValue = "10") int size) {
+        
+        // 参数校验
+        if (page < 0) {
+            page = 0;
+        }
+        if (size <= 0 || size > 100) {
+            size = 10;
+        }
+        
+        return userFollowService.getFollowingList(userId, page, size);
     }
 
     /**
-     * 获取指定用户的粉丝列表
-     * GET /api/user/{userId}/followers
+     * 获取指定用户的粉丝列表 - 分页
+     * GET /api/user/{userId}/followers?page=0&size=10
      */
     @GetMapping("/{userId}/followers")
-    public Result<List<User>> getUserFollowersList(@PathVariable("userId") Long userId) {
-        return userFollowService.getFollowersList(userId);
+    public Result<PageResult<User>> getUserFollowersList(
+            @PathVariable("userId") Long userId,
+            @RequestParam(value = "page", defaultValue = "0") int page,
+            @RequestParam(value = "size", defaultValue = "10") int size) {
+        
+        // 参数校验
+        if (page < 0) {
+            page = 0;
+        }
+        if (size <= 0 || size > 100) {
+            size = 10;
+        }
+        
+        return userFollowService.getFollowersList(userId, page, size);
     }
 
     /**

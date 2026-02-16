@@ -66,25 +66,27 @@ public class UserFollowMapper {
     }
 
     /**
-     * 获取关注列表（我关注的人）
+     * 获取关注列表（我关注的人）- 分页
      */
-    public List<User> getFollowingList(Long userId) {
+    public List<User> getFollowingList(Long userId, int offset, int limit) {
         String sql = "SELECT u.* FROM users u " +
                      "INNER JOIN user_follows f ON u.user_id = f.followee_id " +
                      "WHERE f.follower_id = ? " +
-                     "ORDER BY f.created_at DESC";
-        return jdbcTemplate.query(sql, USER_ROW_MAPPER, userId);
+                     "ORDER BY f.created_at DESC " +
+                     "LIMIT ? OFFSET ?";
+        return jdbcTemplate.query(sql, USER_ROW_MAPPER, userId, limit, offset);
     }
 
     /**
-     * 获取粉丝列表（关注我的人）
+     * 获取粉丝列表（关注我的人）- 分页
      */
-    public List<User> getFollowersList(Long userId) {
+    public List<User> getFollowersList(Long userId, int offset, int limit) {
         String sql = "SELECT u.* FROM users u " +
                      "INNER JOIN user_follows f ON u.user_id = f.follower_id " +
                      "WHERE f.followee_id = ? " +
-                     "ORDER BY f.created_at DESC";
-        return jdbcTemplate.query(sql, USER_ROW_MAPPER, userId);
+                     "ORDER BY f.created_at DESC " +
+                     "LIMIT ? OFFSET ?";
+        return jdbcTemplate.query(sql, USER_ROW_MAPPER, userId, limit, offset);
     }
 
     /**

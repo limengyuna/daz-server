@@ -1,5 +1,6 @@
 package com.limengyuan.partner.user.service;
 
+import com.limengyuan.partner.common.dto.PageResult;
 import com.limengyuan.partner.common.entity.User;
 import com.limengyuan.partner.common.result.Result;
 import com.limengyuan.partner.user.mapper.UserFollowMapper;
@@ -81,23 +82,43 @@ public class UserFollowService {
     }
 
     /**
-     * 获取关注列表（我关注的人）
+     * 获取关注列表（我关注的人）- 分页
      */
-    public Result<List<User>> getFollowingList(Long userId) {
-        List<User> followingList = userFollowMapper.getFollowingList(userId);
+    public Result<PageResult<User>> getFollowingList(Long userId, int page, int size) {
+        // 计算偏移量
+        int offset = page * size;
+        
+        // 获取分页数据
+        List<User> followingList = userFollowMapper.getFollowingList(userId, offset, size);
         // 不返回密码
         followingList.forEach(user -> user.setPasswordHash(null));
-        return Result.success(followingList);
+        
+        // 获取总数
+        int total = userFollowMapper.getFollowingCount(userId);
+        
+        // 构建分页结果
+        PageResult<User> pageResult = PageResult.of(followingList, total, page, size);
+        return Result.success(pageResult);
     }
 
     /**
-     * 获取粉丝列表（关注我的人）
+     * 获取粉丝列表（关注我的人）- 分页
      */
-    public Result<List<User>> getFollowersList(Long userId) {
-        List<User> followersList = userFollowMapper.getFollowersList(userId);
+    public Result<PageResult<User>> getFollowersList(Long userId, int page, int size) {
+        // 计算偏移量
+        int offset = page * size;
+        
+        // 获取分页数据
+        List<User> followersList = userFollowMapper.getFollowersList(userId, offset, size);
         // 不返回密码
         followersList.forEach(user -> user.setPasswordHash(null));
-        return Result.success(followersList);
+        
+        // 获取总数
+        int total = userFollowMapper.getFollowersCount(userId);
+        
+        // 构建分页结果
+        PageResult<User> pageResult = PageResult.of(followersList, total, page, size);
+        return Result.success(pageResult);
     }
 
     /**
