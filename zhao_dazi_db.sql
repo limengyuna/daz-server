@@ -24,7 +24,6 @@ DROP TABLE IF EXISTS `activities`;
 CREATE TABLE `activities`  (
   `activity_id` bigint UNSIGNED NOT NULL AUTO_INCREMENT,
   `initiator_id` bigint UNSIGNED NOT NULL COMMENT '发起人ID (外键)',
-  `category_id` int UNSIGNED NOT NULL COMMENT '分类ID (外键)',
   `title` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '标题 (如: 周末去吃火锅)',
   `description` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '详细描述/要求',
   `images` json NULL COMMENT '活动配图 - JSON数组',
@@ -32,6 +31,7 @@ CREATE TABLE `activities`  (
   `location_address` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '详细地址',
   `latitude` decimal(10, 8) NULL DEFAULT NULL COMMENT '纬度',
   `longitude` decimal(11, 8) NULL DEFAULT NULL COMMENT '经度',
+  `category_ids` json NOT NULL COMMENT '分类ID列表 - JSON数组，支持多分类',
   `start_time` datetime NULL DEFAULT NULL COMMENT '活动开始时间',
   `end_time` datetime NULL DEFAULT NULL COMMENT '活动结束时间',
   `registration_end_time` datetime NULL DEFAULT NULL COMMENT '报名结束时间',
@@ -42,7 +42,6 @@ CREATE TABLE `activities`  (
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`activity_id`) USING BTREE,
   INDEX `idx_initiator`(`initiator_id` ASC) USING BTREE,
-  INDEX `idx_category`(`category_id` ASC) USING BTREE,
   INDEX `idx_start_time`(`start_time` ASC) USING BTREE,
   INDEX `idx_geo`(`latitude` ASC, `longitude` ASC) USING BTREE COMMENT '简单的地理位置索引'
 ) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '搭子活动表' ROW_FORMAT = Dynamic;

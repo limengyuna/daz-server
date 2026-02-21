@@ -52,16 +52,26 @@ public class ActivityService {
             }
         }
 
+        // 1.1 处理 categoryIds 为 JSON 字符串
+        String categoryIdsJson;
+        try {
+            categoryIdsJson = objectMapper.writeValueAsString(request.getCategoryIds());
+        } catch (JsonProcessingException e) {
+            return Result.error("分类格式错误");
+        }
+
         // 2. 构建Activity实体
         Activity activity = Activity.builder()
                 .initiatorId(request.getInitiatorId())
-                .categoryId(request.getCategoryId())
+                .categoryIds(categoryIdsJson)
                 .title(request.getTitle().trim())
                 .description(request.getDescription().trim())
                 .images(imagesJson)
                 .locationName(request.getLocationName().trim())
                 .locationAddress(request.getLocationAddress() != null ? request.getLocationAddress().trim() : null)
                 .startTime(request.getStartTime())
+                .endTime(request.getEndTime())
+                .registrationEndTime(request.getRegistrationEndTime())
                 .maxParticipants(
                         request.getMaxParticipants() != null ? request.getMaxParticipants() : DEFAULT_MAX_PARTICIPANTS)
                 .paymentType(request.getPaymentType() != null ? request.getPaymentType() : DEFAULT_PAYMENT_TYPE)

@@ -32,9 +32,10 @@ public class ActivityMapper {
      */
     public Long insert(Activity activity) {
         String sql = """
-                INSERT INTO activities (initiator_id, category_id, title, description, images,
-                    location_name, location_address, start_time, max_participants, payment_type, status)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO activities (initiator_id, category_ids, title, description, images,
+                    location_name, location_address, start_time, end_time, registration_end_time,
+                    max_participants, payment_type, status)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """;
 
         KeyHolder keyHolder = new GeneratedKeyHolder();
@@ -42,16 +43,18 @@ public class ActivityMapper {
         jdbcTemplate.update(connection -> {
             PreparedStatement ps = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
             ps.setLong(1, activity.getInitiatorId());
-            ps.setInt(2, activity.getCategoryId());
+            ps.setString(2, activity.getCategoryIds());
             ps.setString(3, activity.getTitle());
             ps.setString(4, activity.getDescription());
             ps.setString(5, activity.getImages());
             ps.setString(6, activity.getLocationName());
             ps.setString(7, activity.getLocationAddress());
             ps.setTimestamp(8, Timestamp.valueOf(activity.getStartTime()));
-            ps.setInt(9, activity.getMaxParticipants());
-            ps.setInt(10, activity.getPaymentType());
-            ps.setInt(11, activity.getStatus());
+            ps.setTimestamp(9, activity.getEndTime() != null ? Timestamp.valueOf(activity.getEndTime()) : null);
+            ps.setTimestamp(10, activity.getRegistrationEndTime() != null ? Timestamp.valueOf(activity.getRegistrationEndTime()) : null);
+            ps.setInt(11, activity.getMaxParticipants());
+            ps.setInt(12, activity.getPaymentType());
+            ps.setInt(13, activity.getStatus());
             return ps;
         }, keyHolder);
 
@@ -153,7 +156,7 @@ public class ActivityMapper {
 
         List<Object> params = new ArrayList<>();
         if (categoryId != null) {
-            sql.append("WHERE a.category_id = ? ");
+            sql.append("WHERE JSON_CONTAINS(a.category_ids, JSON_ARRAY(?)) ");
             params.add(categoryId);
         }
         sql.append("ORDER BY a.created_at DESC LIMIT ? OFFSET ?");
@@ -179,7 +182,7 @@ public class ActivityMapper {
         List<Object> params = new ArrayList<>();
 
         if (categoryId != null) {
-            sql.append(" WHERE category_id = ?");
+            sql.append(" WHERE JSON_CONTAINS(category_ids, JSON_ARRAY(?))");
             params.add(categoryId);
         }
 

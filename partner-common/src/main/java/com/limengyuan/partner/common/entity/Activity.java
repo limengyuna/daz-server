@@ -28,9 +28,9 @@ public class Activity {
     private Long initiatorId;
 
     /**
-     * 分类ID
+     * 分类ID列表 - JSON数组
      */
-    private Integer categoryId;
+    private String categoryIds;
 
     /**
      * 标题
@@ -71,6 +71,14 @@ public class Activity {
      * 活动开始时间
      */
     private LocalDateTime startTime;
+    /**
+     * 活动结束时间
+     */
+    private LocalDateTime endTime;
+    /**
+     * 报名截止时间
+     */
+    private LocalDateTime registrationEndTime;
 
     /**
      * 最大参与人数 (含发起人)

@@ -2,6 +2,7 @@ package com.limengyuan.partner.common.dto;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -27,10 +28,11 @@ public class CreateActivityRequest {
     private Long initiatorId;
 
     /**
-     * 分类ID
+     * 分类ID列表（支持多选）
      */
-    @NotNull(message = "分类ID不能为空")
-    private Integer categoryId;
+    @NotNull(message = "分类不能为空")
+    @Size(min = 1, message = "至少选择一个分类")
+    private List<Integer> categoryIds;
 
     /**
      * 标题
@@ -65,6 +67,16 @@ public class CreateActivityRequest {
      */
     @NotNull(message = "活动开始时间不能为空")
     private LocalDateTime startTime;
+    /**
+     * 活动结束时间
+     */    
+    @NotNull(message = "活动结束时间不能为空")
+    private LocalDateTime endTime;
+    /**
+     * 报名截止时间
+     */   
+    @NotNull(message = "报名截止时间不能为空")
+    private LocalDateTime registrationEndTime;
 
     /**
      * 最大参与人数 (含发起人), 默认2
