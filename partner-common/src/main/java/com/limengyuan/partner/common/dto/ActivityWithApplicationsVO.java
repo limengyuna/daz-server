@@ -32,9 +32,9 @@ public class ActivityWithApplicationsVO {
     private Long initiatorId;
 
     /**
-     * 分类ID
+     * 分类ID列表 - JSON数组
      */
-    private Integer categoryId;
+    private String categoryIds;
 
     /**
      * 标题

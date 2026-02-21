@@ -339,7 +339,7 @@ public class ParticipantService {
             ActivityWithApplicationsVO vo = ActivityWithApplicationsVO.builder()
                     .activityId(activity.getActivityId())
                     .initiatorId(activity.getInitiatorId())
-                    .categoryId(activity.getCategoryId())
+                    .categoryIds(activity.getCategoryIds())
                     .title(activity.getTitle())
                     .description(activity.getDescription())
                     .images(activity.getImages())
