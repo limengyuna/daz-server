@@ -182,4 +182,59 @@ CREATE TABLE `users`  (
   INDEX `idx_city`(`city` ASC) USING BTREE
 ) ENGINE = InnoDB AUTO_INCREMENT = 3 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '用户表' ROW_FORMAT = Dynamic;
 
+-- ----------------------------
+-- Table structure for moments
+-- ----------------------------
+DROP TABLE IF EXISTS `moments`;
+CREATE TABLE `moments`  (
+  `moment_id`     bigint UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '动态ID',
+  `user_id`       bigint UNSIGNED NOT NULL COMMENT '发布用户ID (外键 -> users)',
+  `content`       varchar(1000) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '动态正文',
+  `images`        json NULL COMMENT '配图URL数组 - JSON数组，最多9张',
+  `location_name` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '地点名称',
+  `location_address` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '详细地址',
+  `visibility`    tinyint NULL DEFAULT 0 COMMENT '可见范围: 0-公开, 1-仅关注者, 2-仅自己',
+  `like_count`    int UNSIGNED NULL DEFAULT 0 COMMENT '点赞数 (冗余字段，提升查询性能)',
+  `comment_count` int UNSIGNED NULL DEFAULT 0 COMMENT '评论数 (冗余字段)',
+  `view_count`    int UNSIGNED NULL DEFAULT 0 COMMENT '浏览数 (冗余字段)',
+  `status`        tinyint NULL DEFAULT 1 COMMENT '状态: 0-已删除, 1-正常, 2-审核屏蔽',
+  `created_at`    timestamp NULL DEFAULT CURRENT_TIMESTAMP COMMENT '发布时间',
+  `updated_at`    timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`moment_id`) USING BTREE,
+  INDEX `idx_user_created`(`user_id` ASC, `created_at` DESC) USING BTREE COMMENT '查询某人动态列表',
+  INDEX `idx_status_created`(`status` ASC, `created_at` DESC) USING BTREE COMMENT '广场/时间线查询'
+) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '用户动态表' ROW_FORMAT = Dynamic;
+
+-- ----------------------------
+-- Table structure for moment_likes
+-- ----------------------------
+DROP TABLE IF EXISTS `moment_likes`;
+CREATE TABLE `moment_likes`  (
+  `like_id`    bigint UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '点赞ID',
+  `moment_id`  bigint UNSIGNED NOT NULL COMMENT '动态ID (外键 -> moments)',
+  `user_id`    bigint UNSIGNED NOT NULL COMMENT '点赞用户ID (外键 -> users)',
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP COMMENT '点赞时间',
+  PRIMARY KEY (`like_id`) USING BTREE,
+  UNIQUE INDEX `uniq_moment_user`(`moment_id` ASC, `user_id` ASC) USING BTREE COMMENT '防止重复点赞',
+  INDEX `idx_user_likes`(`user_id` ASC, `created_at` DESC) USING BTREE COMMENT '查询某用户的点赞记录'
+) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '动态点赞记录表' ROW_FORMAT = Dynamic;
+
+-- ----------------------------
+-- Table structure for moment_comments
+-- ----------------------------
+DROP TABLE IF EXISTS `moment_comments`;
+CREATE TABLE `moment_comments`  (
+  `comment_id`  bigint UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '评论ID',
+  `moment_id`   bigint UNSIGNED NOT NULL COMMENT '所属动态ID (外键 -> moments)',
+  `user_id`     bigint UNSIGNED NOT NULL COMMENT '评论用户ID (外键 -> users)',
+  `parent_id`   bigint UNSIGNED NULL DEFAULT NULL COMMENT '父评论ID，NULL表示一级评论，非NULL表示回复某条评论',
+  `reply_to_id` bigint UNSIGNED NULL DEFAULT NULL COMMENT '被回复人的用户ID，用于"回复@xxx"展示',
+  `content`     varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '评论内容',
+  `status`      tinyint NULL DEFAULT 1 COMMENT '状态: 0-已删除, 1-正常',
+  `created_at`  timestamp NULL DEFAULT CURRENT_TIMESTAMP COMMENT '评论时间',
+  PRIMARY KEY (`comment_id`) USING BTREE,
+  INDEX `idx_moment_created`(`moment_id` ASC, `created_at` ASC) USING BTREE COMMENT '查询动态下的所有评论',
+  INDEX `idx_parent`(`parent_id` ASC) USING BTREE COMMENT '查询某条评论下的回复'
+) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '动态评论表' ROW_FORMAT = Dynamic;
+
 SET FOREIGN_KEY_CHECKS = 1;
