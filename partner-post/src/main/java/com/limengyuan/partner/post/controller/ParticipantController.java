@@ -102,6 +102,25 @@ public class ParticipantController {
     }
 
     /**
+     * 修改申请留言
+     * PUT /api/participants/{id}/apply-msg
+     * Body: {"applyMsg": "新的留言内容"}
+     */
+    @PutMapping("/participants/{id}/apply-msg")
+    public Result<Void> updateApplyMsg(
+            @PathVariable("id") Long participantId,
+            @RequestBody JoinActivityRequest request,
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+
+        Long userId = getUserIdFromAuth(authHeader);
+        if (userId == null) {
+            return Result.error("请先登录");
+        }
+
+        return participantService.updateApplyMsg(participantId, userId, request.getApplyMsg());
+    }
+
+    /**
      * 获取我的所有申请记录
      * GET /api/my/applications
      */

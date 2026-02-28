@@ -305,6 +305,41 @@ public class ParticipantService {
     }
 
     /**
+     * 修改申请留言
+     *
+     * @param participantId 参与记录ID
+     * @param userId        当前用户ID（只能修改自己的留言）
+     * @param applyMsg      新的留言内容
+     * @return 操作结果
+     */
+    public Result<Void> updateApplyMsg(Long participantId, Long userId, String applyMsg) {
+        // 1. 查询参与记录
+        Optional<Participant> participantOpt = participantMapper.findById(participantId);
+        if (participantOpt.isEmpty()) {
+            return Result.error("申请记录不存在");
+        }
+
+        Participant participant = participantOpt.get();
+
+        // 2. 只能修改自己的留言
+        if (!participant.getUserId().equals(userId)) {
+            return Result.error("无权修改他人的申请留言");
+        }
+
+        // 3. 仅 pending 状态下允许修改
+        if (participant.getStatus() != Participant.STATUS_PENDING) {
+            return Result.error("申请已处理，无法修改留言");
+        }
+
+        boolean success = participantMapper.updateApplyMsg(participantId, applyMsg);
+        if (!success) {
+            return Result.error("修改失败，请稍后重试");
+        }
+
+        return Result.success("留言已更新", null);
+    }
+
+    /**
      * 获取用户的所有申请记录
      *
      * @param userId 用户ID

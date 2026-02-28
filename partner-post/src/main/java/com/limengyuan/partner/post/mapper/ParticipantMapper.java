@@ -134,6 +134,15 @@ public class ParticipantMapper {
     }
 
     /**
+     * 更新申请留言
+     */
+    public boolean updateApplyMsg(Long participantId, String applyMsg) {
+        String sql = "UPDATE participants SET apply_msg = ?, updated_at = ? WHERE participant_id = ?";
+        int rows = jdbcTemplate.update(sql, applyMsg, Timestamp.valueOf(LocalDateTime.now()), participantId);
+        return rows > 0;
+    }
+
+    /**
      * 统计活动已通过的参与人数
      */
     public int countApprovedByActivityId(Long activityId) {
@@ -149,11 +158,20 @@ public class ParticipantMapper {
         String sql = """
                 SELECT p.participant_id,
                        p.activity_id,
-                       a.title AS activity_title,
+                       a.title         AS activity_title,
+                       a.images,
+                       a.location_name,
+                       a.start_time,
+                       a.initiator_id,
+                       u.nickname      AS initiator_nickname,
+                       u.avatar_url    AS initiator_avatar,
+                       u.credit_score  AS initiator_credit_score,
                        p.status,
+                       p.apply_msg,
                        p.created_at
                 FROM participants p
                 LEFT JOIN activities a ON p.activity_id = a.activity_id
+                LEFT JOIN users u ON a.initiator_id = u.user_id
                 WHERE p.user_id = ?
                 ORDER BY p.created_at DESC
                 """;
