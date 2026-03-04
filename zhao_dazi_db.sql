@@ -237,4 +237,43 @@ CREATE TABLE `moment_comments`  (
   INDEX `idx_parent`(`parent_id` ASC) USING BTREE COMMENT '查询某条评论下的回复'
 ) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '动态评论表' ROW_FORMAT = Dynamic;
 
+-- ----------------------------
+-- Table structure for activity_expenses
+-- ----------------------------
+DROP TABLE IF EXISTS `activity_expenses`;
+CREATE TABLE `activity_expenses`  (
+  `expense_id`   bigint UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '支出记录ID',
+  `activity_id`  bigint UNSIGNED NOT NULL COMMENT '关联活动ID (外键 -> activities)',
+  `payer_id`     bigint UNSIGNED NOT NULL COMMENT '付款人ID (外键 -> users，谁先垫的钱)',
+  `title`        varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '支出标题 (如: 午餐、门票、打车费)',
+  `amount`       decimal(10, 2) NOT NULL COMMENT '金额 (元)',
+  `category`     tinyint NULL DEFAULT 0 COMMENT '消费分类: 0-其他, 1-餐饮, 2-交通, 3-住宿, 4-门票, 5-购物',
+  `images`       json NULL COMMENT '凭证/小票图片 - JSON数组',
+  `remark`       varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '备注',
+  `split_type`   tinyint NULL DEFAULT 1 COMMENT '分摊方式: 1-均摊, 2-按比例, 3-指定金额',
+  `created_at`   timestamp NULL DEFAULT CURRENT_TIMESTAMP COMMENT '记录时间',
+  `updated_at`   timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  PRIMARY KEY (`expense_id`) USING BTREE,
+  INDEX `idx_activity`(`activity_id` ASC, `created_at` ASC) USING BTREE COMMENT '查询某活动的所有支出',
+  INDEX `idx_payer`(`payer_id` ASC) USING BTREE COMMENT '查询某用户的垫付记录'
+) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '活动支出记录表' ROW_FORMAT = Dynamic;
+
+-- ----------------------------
+-- Table structure for expense_splits
+-- ----------------------------
+DROP TABLE IF EXISTS `expense_splits`;
+CREATE TABLE `expense_splits`  (
+  `split_id`    bigint UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '分摊记录ID',
+  `expense_id`  bigint UNSIGNED NOT NULL COMMENT '关联支出ID (外键 -> activity_expenses)',
+  `user_id`     bigint UNSIGNED NOT NULL COMMENT '分摊人ID (外键 -> users)',
+  `amount`      decimal(10, 2) NOT NULL COMMENT '该用户应分摊的金额',
+  `is_settled`  tinyint NULL DEFAULT 0 COMMENT '是否已结清: 0-未结清, 1-已结清',
+  `settled_at`  timestamp NULL DEFAULT NULL COMMENT '结清时间',
+  `created_at`  timestamp NULL DEFAULT CURRENT_TIMESTAMP COMMENT '记录时间',
+  PRIMARY KEY (`split_id`) USING BTREE,
+  UNIQUE INDEX `uniq_expense_user`(`expense_id` ASC, `user_id` ASC) USING BTREE COMMENT '防止同一笔支出重复分摊',
+  INDEX `idx_expense`(`expense_id` ASC) USING BTREE COMMENT '查询某笔支出的所有分摊',
+  INDEX `idx_user_settled`(`user_id` ASC, `is_settled` ASC) USING BTREE COMMENT '查询某用户待结清的账单'
+) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '分摊明细表' ROW_FORMAT = Dynamic;
+
 SET FOREIGN_KEY_CHECKS = 1;
