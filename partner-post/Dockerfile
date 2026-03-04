@@ -1,7 +1,6 @@
 # ===========================
-# partner-user 用户服务 Dockerfile
+# partner-post 帖子服务 Dockerfile
 # ===========================
-# 使用方法: 先在根目录执行 mvn clean package -DskipTests，再 docker-compose up
 FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app
 
@@ -14,7 +13,7 @@ RUN apk add --no-cache tzdata && \
 COPY target/*.jar app.jar
 
 # 暴露端口
-EXPOSE 8081
+EXPOSE 8082
 
 # JVM 参数
 ENV JAVA_OPTS="-Xms256m -Xmx512m"

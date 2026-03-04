@@ -1,7 +1,6 @@
 # ===========================
-# partner-user 用户服务 Dockerfile
+# partner-file-service 文件服务 Dockerfile
 # ===========================
-# 使用方法: 先在根目录执行 mvn clean package -DskipTests，再 docker-compose up
 FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app
 
@@ -14,10 +13,11 @@ RUN apk add --no-cache tzdata && \
 COPY target/*.jar app.jar
 
 # 暴露端口
-EXPOSE 8081
+EXPOSE 8083
 
 # JVM 参数
 ENV JAVA_OPTS="-Xms256m -Xmx512m"
 
 # 启动应用，激活 docker 配置
-ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -Dspring.profiles.active=docker -jar app.jar"]
+# 同时激活 local（OSS 密钥）和 docker 两个配置
+ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -Dspring.profiles.active=local,docker -jar app.jar"]

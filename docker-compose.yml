@@ -1,94 +1,79 @@
 version: '3.8'
 
+# ===========================
+# 找搭子系统 - Docker Compose 编排
+# ===========================
+# 使用方法:
+#   1. 先执行: mvn clean package -DskipTests
+#   2. 再执行: docker-compose up -d --build
+#   3. 停止: docker-compose down
+# ===========================
+
 services:
-  # MySQL 数据库
-  mysql:
-    image: mysql:8.0
-    container_name: partner-mysql
-    environment:
-      MYSQL_ROOT_PASSWORD: root123456
-      MYSQL_DATABASE: partner_finder
-      TZ: Asia/Shanghai
-    ports:
-      - "3306:3306"
-    volumes:
-      - mysql_data:/var/lib/mysql
-    networks:
-      - partner-network
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
 
-  # Nacos 服务注册与配置中心
-  nacos:
-    image: nacos/nacos-server:v2.3.0
-    container_name: partner-nacos
-    environment:
-      MODE: standalone
-      SPRING_DATASOURCE_PLATFORM: mysql
-      MYSQL_SERVICE_HOST: mysql
-      MYSQL_SERVICE_PORT: 3306
-      MYSQL_SERVICE_USER: root
-      MYSQL_SERVICE_PASSWORD: root123456
-      MYSQL_SERVICE_DB_NAME: nacos_config
+  # ===========================
+  # partner-gateway 网关服务 (入口)
+  # ===========================
+  partner-gateway:
+    build:
+      context: ./partner-gateway
+      dockerfile: Dockerfile
+    container_name: partner-gateway
     ports:
-      - "8848:8848"
-      - "9848:9848"
+      - "8080:8080"
     depends_on:
-      mysql:
-        condition: service_healthy
+      - partner-user
+      - partner-post
+      - partner-file-service
     networks:
       - partner-network
+    restart: unless-stopped
 
-  # Sentinel Dashboard (可选)
-  sentinel:
-    image: bladex/sentinel-dashboard:1.8.6
-    container_name: partner-sentinel
-    ports:
-      - "8858:8858"
-    networks:
-      - partner-network
-
-  # Zipkin 链路追踪 (可选)
-  zipkin:
-    image: openzipkin/zipkin:latest
-    container_name: partner-zipkin
-    ports:
-      - "9411:9411"
-    networks:
-      - partner-network
-
-  # 用户服务
+  # ===========================
+  # partner-user 用户服务
+  # ===========================
   partner-user:
     build:
       context: ./partner-user
       dockerfile: Dockerfile
     container_name: partner-user
-    environment:
-      NACOS_ADDR: nacos:8848
-      MYSQL_HOST: mysql
-      MYSQL_PORT: 3306
-      MYSQL_DATABASE: partner_finder
-      SPRING_DATASOURCE_USERNAME: root
-      SPRING_DATASOURCE_PASSWORD: root123456
-      SPRING_CLOUD_SENTINEL_TRANSPORT_DASHBOARD: sentinel:8858
-      MANAGEMENT_ZIPKIN_TRACING_ENDPOINT: http://zipkin:9411/api/v2/spans
     ports:
       - "8081:8081"
-    depends_on:
-      mysql:
-        condition: service_healthy
-      nacos:
-        condition: service_started
     networks:
       - partner-network
     restart: unless-stopped
 
+  # ===========================
+  # partner-post 帖子/活动服务
+  # ===========================
+  partner-post:
+    build:
+      context: ./partner-post
+      dockerfile: Dockerfile
+    container_name: partner-post
+    ports:
+      - "8082:8082"
+    networks:
+      - partner-network
+    restart: unless-stopped
+
+  # ===========================
+  # partner-file-service 文件服务
+  # ===========================
+  partner-file-service:
+    build:
+      context: ./partner-file-service
+      dockerfile: Dockerfile
+    container_name: partner-file-service
+    ports:
+      - "8083:8083"
+    networks:
+      - partner-network
+    restart: unless-stopped
+
+# ===========================
+# Docker 网络
+# ===========================
 networks:
   partner-network:
     driver: bridge
-
-volumes:
-  mysql_data:
