@@ -48,9 +48,18 @@ echo [OK] 所有服务打包完成
 echo.
 
 :: ===========================
-:: 第三步: 构建 Docker 镜像
+:: 第三步: 停止旧容器
 :: ===========================
-echo [2/3] 正在构建 Docker 镜像...
+echo [2/4] 正在停止旧容器...
+cd /d "%PROJECT_DIR%"
+docker-compose down 2>nul
+echo [OK] 旧容器已停止
+echo.
+
+:: ===========================
+:: 第四步: 构建 Docker 镜像
+:: ===========================
+echo [3/4] 正在构建 Docker 镜像...
 cd /d "%PROJECT_DIR%"
 docker-compose build
 if %errorlevel% neq 0 (
@@ -62,9 +71,9 @@ echo [OK] Docker 镜像构建完成
 echo.
 
 :: ===========================
-:: 第四步: 启动所有容器
+:: 第五步: 启动所有容器
 :: ===========================
-echo [3/3] 正在启动所有容器...
+echo [4/4] 正在启动所有容器...
 docker-compose up -d
 if %errorlevel% neq 0 (
     echo [错误] 容器启动失败！
