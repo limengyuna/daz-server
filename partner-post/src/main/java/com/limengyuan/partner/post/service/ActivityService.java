@@ -5,9 +5,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.limengyuan.partner.common.dto.ActivityVO;
 import com.limengyuan.partner.common.dto.CreateActivityRequest;
 import com.limengyuan.partner.common.dto.PageResult;
+import com.limengyuan.partner.common.dto.ParticipantVO;
 import com.limengyuan.partner.common.entity.Activity;
 import com.limengyuan.partner.common.result.Result;
 import com.limengyuan.partner.post.mapper.ActivityMapper;
+import com.limengyuan.partner.post.mapper.ParticipantMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -28,10 +30,13 @@ public class ActivityService {
     private static final int STATUS_RECRUITING = 0;
 
     private final ActivityMapper activityMapper;
+    private final ParticipantMapper participantMapper;
     private final ObjectMapper objectMapper;
 
-    public ActivityService(ActivityMapper activityMapper, ObjectMapper objectMapper) {
+    public ActivityService(ActivityMapper activityMapper, ParticipantMapper participantMapper,
+            ObjectMapper objectMapper) {
         this.activityMapper = activityMapper;
+        this.participantMapper = participantMapper;
         this.objectMapper = objectMapper;
     }
 
@@ -91,14 +96,19 @@ public class ActivityService {
     }
 
     /**
-     * 获取活动详情
+     * 获取活动详情（包含已通过审核的参与者列表）
      * 
      * @param activityId 活动ID
      * @return 活动详情
      */
     public Result<ActivityVO> getActivity(Long activityId) {
         return activityMapper.findByIdWithUser(activityId)
-                .map(Result::success)
+                .map(activity -> {
+                    // 查询已通过审核的参与者列表
+                    List<ParticipantVO> participants = participantMapper.findApprovedByActivityIdWithUser(activityId);
+                    activity.setParticipants(participants);
+                    return Result.success(activity);
+                })
                 .orElse(Result.error("活动不存在"));
     }
 

@@ -7,6 +7,7 @@ import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * 活动视图对象 - 包含活动信息和发布者信息
@@ -130,4 +131,11 @@ public class ActivityVO {
      * 当前参与人数
      */
     private Integer currentParticipants;
+
+    // ==================== 参与者列表 ====================
+
+    /**
+     * 已通过审核的参与者列表（包含用户信息）
+     */
+    private List<ParticipantVO> participants;
 }

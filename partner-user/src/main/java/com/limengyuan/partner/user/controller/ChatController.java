@@ -2,6 +2,7 @@ package com.limengyuan.partner.user.controller;
 
 import com.limengyuan.partner.common.dto.ChatConversationVO;
 import com.limengyuan.partner.common.dto.ChatMessageVO;
+import com.limengyuan.partner.common.dto.GroupChatVO;
 import com.limengyuan.partner.common.dto.SendMessageRequest;
 import com.limengyuan.partner.common.result.Result;
 import com.limengyuan.partner.common.util.JwtUtils;
@@ -19,6 +20,7 @@ import java.util.List;
  * POST /api/chat/conversations?targetUserId=xxx 创建/获取与指定用户的会话
  * GET /api/chat/conversations/{id}/messages 获取私聊消息列表（分页）
  * POST /api/chat/messages/private 发送私聊消息
+ * GET /api/chat/group/my 获取我参与的群聊列表
  * GET /api/chat/group/{activityId}/messages 获取群聊消息列表（分页）
  * POST /api/chat/messages/group 发送群聊消息
  */
@@ -128,6 +130,29 @@ public class ChatController {
         }
 
         return chatService.sendPrivateMessage(userId, request);
+    }
+
+    // ============================
+    // 群聊列表
+    // ============================
+
+    /**
+     * 获取当前用户参与的所有群聊列表
+     * GET /api/chat/group/my
+     * <p>
+     * 请求头需携带: Authorization: Bearer {token}
+     * 返回用户发起的活动 + 用户参与并已通过审核的活动的群聊列表
+     */
+    @GetMapping("/group/my")
+    public Result<List<GroupChatVO>> getMyGroupChats(
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+
+        Long userId = parseUserIdFromToken(authHeader);
+        if (userId == null) {
+            return Result.error("未登录或 Token 无效");
+        }
+
+        return chatService.getMyGroupChats(userId);
     }
 
     // ============================

@@ -2,6 +2,7 @@ package com.limengyuan.partner.user.service;
 
 import com.limengyuan.partner.common.dto.ChatConversationVO;
 import com.limengyuan.partner.common.dto.ChatMessageVO;
+import com.limengyuan.partner.common.dto.GroupChatVO;
 import com.limengyuan.partner.common.dto.SendMessageRequest;
 import com.limengyuan.partner.common.entity.ChatConversation;
 import com.limengyuan.partner.common.entity.ChatMessage;
@@ -174,6 +175,21 @@ public class ChatService {
                 .build();
 
         return Result.success("发送成功", vo);
+    }
+
+    // ============================
+    // 群聊列表
+    // ============================
+
+    /**
+     * 获取当前用户参与的所有群聊列表
+     *
+     * @param userId 当前用户ID
+     * @return 群聊列表
+     */
+    public Result<List<GroupChatVO>> getMyGroupChats(Long userId) {
+        List<GroupChatVO> groupChats = chatMapper.findGroupChatsByUserId(userId);
+        return Result.success(groupChats);
     }
 
     // ============================

@@ -2,6 +2,7 @@ package com.limengyuan.partner.user.mapper;
 
 import com.limengyuan.partner.common.dto.ChatConversationVO;
 import com.limengyuan.partner.common.dto.ChatMessageVO;
+import com.limengyuan.partner.common.dto.GroupChatVO;
 import com.limengyuan.partner.common.entity.ChatConversation;
 import com.limengyuan.partner.common.entity.ChatMessage;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -267,5 +268,64 @@ public class ChatMapper {
 
         Number key = keyHolder.getKey();
         return key != null ? key.longValue() : null;
+    }
+
+    // ============================
+    // 群聊列表查询
+    // ============================
+
+    /**
+     * 查询用户参与的所有群聊列表
+     * 包括：用户发起的活动 + 用户参与并已通过审核的活动
+     * 通过子查询获取每个群聊的最后一条消息和成员数
+     *
+     * @param userId 当前用户ID
+     * @return 群聊列表
+     */
+    public List<GroupChatVO> findGroupChatsByUserId(Long userId) {
+        String sql = """
+                SELECT a.activity_id,
+                       a.title AS activity_title,
+                       a.images AS activity_images,
+                       a.status AS activity_status,
+                       (SELECT COUNT(*) + 1 FROM participants p2
+                        WHERE p2.activity_id = a.activity_id AND p2.status = 1) AS member_count,
+                       last_msg.content AS last_message_content,
+                       last_msg.sender_nickname AS last_message_sender_nickname,
+                       last_msg.created_at AS last_message_time
+                FROM activities a
+                LEFT JOIN (
+                    SELECT m.activity_id,
+                           m.content,
+                           u.nickname AS sender_nickname,
+                           m.created_at,
+                           ROW_NUMBER() OVER (PARTITION BY m.activity_id ORDER BY m.created_at DESC) AS rn
+                    FROM chat_messages m
+                    LEFT JOIN users u ON m.sender_id = u.user_id
+                    WHERE m.activity_id IS NOT NULL
+                ) last_msg ON last_msg.activity_id = a.activity_id AND last_msg.rn = 1
+                WHERE a.initiator_id = ?
+                   OR a.activity_id IN (
+                       SELECT p.activity_id FROM participants p
+                       WHERE p.user_id = ? AND p.status = 1
+                   )
+                ORDER BY COALESCE(last_msg.created_at, a.created_at) DESC
+                """;
+        try {
+            return jdbcTemplate.query(sql, (rs, rowNum) -> GroupChatVO.builder()
+                    .activityId(rs.getLong("activity_id"))
+                    .activityTitle(rs.getString("activity_title"))
+                    .activityImages(rs.getString("activity_images"))
+                    .activityStatus(rs.getInt("activity_status"))
+                    .memberCount(rs.getInt("member_count"))
+                    .lastMessageContent(rs.getString("last_message_content"))
+                    .lastMessageSenderNickname(rs.getString("last_message_sender_nickname"))
+                    .lastMessageTime(rs.getTimestamp("last_message_time") != null
+                            ? rs.getTimestamp("last_message_time").toLocalDateTime()
+                            : null)
+                    .build(), userId, userId);
+        } catch (Exception e) {
+            return List.of();
+        }
     }
 }
