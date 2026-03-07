@@ -1,0 +1,97 @@
+version: '3.8'
+
+# ===========================
+# 找搭子系统 - 服务器 Docker 部署
+# ===========================
+# 部署到服务器 45.192.97.24 使用此文件
+# 使用方法:
+#   docker-compose -f docker-compose-server.yml up -d --build
+#   docker-compose -f docker-compose-server.yml down
+# ===========================
+
+services:
+
+  # ===========================
+  # partner-gateway 网关服务 (入口)
+  # ===========================
+  partner-gateway:
+    build:
+      context: ./partner-gateway
+      dockerfile: Dockerfile
+    container_name: partner-gateway
+    ports:
+      - "8080:8080"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      - partner-user
+      - partner-post
+      - partner-file-service
+    networks:
+      - partner-network
+    restart: always
+
+  # ===========================
+  # partner-user 用户服务
+  # ===========================
+  partner-user:
+    build:
+      context: ./partner-user
+      dockerfile: Dockerfile
+    container_name: partner-user
+    ports:
+      - "8081:8081"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      # 覆盖数据库地址：容器内通过 host.docker.internal 访问宿主机 MySQL
+      - SPRING_DATASOURCE_URL=jdbc:mysql://host.docker.internal:3306/zhao_dazi_db?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai
+      - SPRING_DATASOURCE_USERNAME=root
+      - SPRING_DATASOURCE_PASSWORD=3847
+    networks:
+      - partner-network
+    restart: always
+
+  # ===========================
+  # partner-post 帖子/活动服务
+  # ===========================
+  partner-post:
+    build:
+      context: ./partner-post
+      dockerfile: Dockerfile
+    container_name: partner-post
+    ports:
+      - "8082:8082"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      # 覆盖数据库地址：容器内通过 host.docker.internal 访问宿主机 MySQL
+      - SPRING_DATASOURCE_URL=jdbc:mysql://host.docker.internal:3306/zhao_dazi_db?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai
+      - SPRING_DATASOURCE_USERNAME=root
+      - SPRING_DATASOURCE_PASSWORD=3847
+    networks:
+      - partner-network
+    restart: always
+
+  # ===========================
+  # partner-file-service 文件服务
+  # ===========================
+  partner-file-service:
+    build:
+      context: ./partner-file-service
+      dockerfile: Dockerfile
+    container_name: partner-file-service
+    ports:
+      - "8083:8083"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - partner-network
+    restart: always
+
+# ===========================
+# Docker 网络
+# ===========================
+networks:
+  partner-network:
+    driver: bridge
