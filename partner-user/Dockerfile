@@ -16,8 +16,8 @@ COPY target/*.jar app.jar
 # 暴露端口
 EXPOSE 8081
 
-# JVM 参数
-ENV JAVA_OPTS="-Xms256m -Xmx512m"
+# JVM 参数（适配 2GB 小内存服务器）
+ENV JAVA_OPTS="-Xms128m -Xmx256m -XX:MaxMetaspaceSize=128m -XX:+UseSerialGC -XX:MaxDirectMemorySize=64m"
 
 # 启动应用，激活 docker 配置
-ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -Dspring.profiles.active=docker -jar app.jar"]
+ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -Duser.timezone=Asia/Shanghai -Dspring.profiles.active=docker -jar app.jar"]
