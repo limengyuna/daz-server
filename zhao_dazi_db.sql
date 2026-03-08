@@ -140,7 +140,10 @@ CREATE TABLE `reviews`  (
   `tags` json NULL COMMENT '评价标签 (如: 守时, 幽默)',
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`review_id`) USING BTREE,
-  INDEX `idx_reviewee`(`reviewee_id` ASC) USING BTREE
+  UNIQUE INDEX `uk_activity_reviewer_reviewee`(`activity_id` ASC, `reviewer_id` ASC, `reviewee_id` ASC) USING BTREE COMMENT '防止重复评价',
+  INDEX `idx_reviewee`(`reviewee_id` ASC) USING BTREE,
+  INDEX `idx_reviewer`(`reviewer_id` ASC) USING BTREE,
+  INDEX `idx_activity`(`activity_id` ASC) USING BTREE
 ) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '用户评价表' ROW_FORMAT = Dynamic;
 
 -- ----------------------------
