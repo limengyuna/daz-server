@@ -1,6 +1,6 @@
 package com.limengyuan.partner.post.mapper;
 
-import com.limengyuan.partner.common.dto.ReviewVO;
+import com.limengyuan.partner.common.dto.vo.ReviewVO;
 import com.limengyuan.partner.common.entity.Review;
 import org.springframework.jdbc.core.BeanPropertyRowMapper;
 import org.springframework.jdbc.core.JdbcTemplate;

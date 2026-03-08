@@ -1,4 +1,4 @@
-package com.limengyuan.partner.common.dto;
+package com.limengyuan.partner.common.dto.response;
 
 import com.limengyuan.partner.common.entity.User;
 import lombok.AllArgsConstructor;

@@ -1,4 +1,4 @@
-package com.limengyuan.partner.common.dto;
+package com.limengyuan.partner.common.dto.vo;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -10,13 +10,14 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 /**
- * 活动视图对象 - 包含活动信息和发布者信息
+ * 活动及其申请列表视图对象
+ * 用于聚合返回活动信息和对应的申请记录
  */
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class ActivityVO {
+public class ActivityWithApplicationsVO {
 
     // ==================== 活动基础信息 ====================
 
@@ -76,16 +77,6 @@ public class ActivityVO {
     private LocalDateTime startTime;
 
     /**
-     * 活动结束时间
-     */
-    private LocalDateTime endTime;
-
-    /**
-     * 报名截止时间
-     */
-    private LocalDateTime registrationEndTime;
-
-    /**
      * 最大参与人数 (含发起人)
      */
     private Integer maxParticipants;
@@ -128,14 +119,19 @@ public class ActivityVO {
     private Integer initiatorCreditScore;
 
     /**
-     * 当前参与人数
+     * 当前参与人数（已通过的）
      */
     private Integer currentParticipants;
 
-    // ==================== 参与者列表 ====================
+    // ==================== 申请列表信息 ====================
 
     /**
-     * 已通过审核的参与者列表（包含用户信息）
+     * 申请记录列表（默认返回前7条）
      */
-    private List<ParticipantVO> participants;
+    private List<ParticipantVO> applications;
+
+    /**
+     * 申请记录总数
+     */
+    private Integer totalApplications;
 }

@@ -1,4 +1,4 @@
-package com.limengyuan.partner.common.dto;
+package com.limengyuan.partner.common.dto.request;
 
 import jakarta.validation.constraints.NotBlank;
 import lombok.AllArgsConstructor;

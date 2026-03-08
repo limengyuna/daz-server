@@ -2,10 +2,10 @@ package com.limengyuan.partner.post.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.limengyuan.partner.common.dto.ActivityVO;
-import com.limengyuan.partner.common.dto.CreateActivityRequest;
+import com.limengyuan.partner.common.dto.vo.ActivityVO;
+import com.limengyuan.partner.common.dto.request.CreateActivityRequest;
 import com.limengyuan.partner.common.dto.PageResult;
-import com.limengyuan.partner.common.dto.ParticipantVO;
+import com.limengyuan.partner.common.dto.vo.ParticipantVO;
 import com.limengyuan.partner.common.entity.Activity;
 import com.limengyuan.partner.common.result.Result;
 import com.limengyuan.partner.post.mapper.ActivityMapper;

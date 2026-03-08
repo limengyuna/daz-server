@@ -1,7 +1,7 @@
 package com.limengyuan.partner.post.controller;
 
-import com.limengyuan.partner.common.dto.ActivityVO;
-import com.limengyuan.partner.common.dto.CreateActivityRequest;
+import com.limengyuan.partner.common.dto.vo.ActivityVO;
+import com.limengyuan.partner.common.dto.request.CreateActivityRequest;
 import com.limengyuan.partner.common.dto.PageResult;
 import com.limengyuan.partner.common.entity.Activity;
 import com.limengyuan.partner.common.result.Result;

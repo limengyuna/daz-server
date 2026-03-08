@@ -1,10 +1,10 @@
 package com.limengyuan.partner.post.controller;
 
-import com.limengyuan.partner.common.dto.CreateMomentRequest;
-import com.limengyuan.partner.common.dto.MomentCommentVO;
-import com.limengyuan.partner.common.dto.MomentVO;
+import com.limengyuan.partner.common.dto.request.CreateMomentRequest;
+import com.limengyuan.partner.common.dto.vo.MomentCommentVO;
+import com.limengyuan.partner.common.dto.vo.MomentVO;
 import com.limengyuan.partner.common.dto.PageResult;
-import com.limengyuan.partner.common.dto.UpdateMomentRequest;
+import com.limengyuan.partner.common.dto.request.UpdateMomentRequest;
 import com.limengyuan.partner.common.result.Result;
 import com.limengyuan.partner.common.util.JwtUtils;
 import com.limengyuan.partner.post.service.MomentService;

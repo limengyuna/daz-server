@@ -1,9 +1,9 @@
 package com.limengyuan.partner.user.service;
 
-import com.limengyuan.partner.common.dto.ChatConversationVO;
-import com.limengyuan.partner.common.dto.ChatMessageVO;
-import com.limengyuan.partner.common.dto.GroupChatVO;
-import com.limengyuan.partner.common.dto.SendMessageRequest;
+import com.limengyuan.partner.common.dto.vo.ChatConversationVO;
+import com.limengyuan.partner.common.dto.vo.ChatMessageVO;
+import com.limengyuan.partner.common.dto.vo.GroupChatVO;
+import com.limengyuan.partner.common.dto.request.SendMessageRequest;
 import com.limengyuan.partner.common.entity.ChatConversation;
 import com.limengyuan.partner.common.entity.ChatMessage;
 import com.limengyuan.partner.common.result.Result;

@@ -1,6 +1,6 @@
 package com.limengyuan.partner.post.mapper;
 
-import com.limengyuan.partner.common.dto.ActivityVO;
+import com.limengyuan.partner.common.dto.vo.ActivityVO;
 import com.limengyuan.partner.common.entity.Activity;
 import org.springframework.jdbc.core.BeanPropertyRowMapper;
 import org.springframework.jdbc.core.JdbcTemplate;

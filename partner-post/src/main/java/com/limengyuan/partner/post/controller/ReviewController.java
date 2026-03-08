@@ -1,8 +1,8 @@
 package com.limengyuan.partner.post.controller;
 
-import com.limengyuan.partner.common.dto.ReviewVO;
-import com.limengyuan.partner.common.dto.SubmitReviewRequest;
-import com.limengyuan.partner.common.dto.UserReviewPageVO;
+import com.limengyuan.partner.common.dto.vo.ReviewVO;
+import com.limengyuan.partner.common.dto.request.SubmitReviewRequest;
+import com.limengyuan.partner.common.dto.vo.UserReviewPageVO;
 import com.limengyuan.partner.common.result.Result;
 import com.limengyuan.partner.common.util.JwtUtils;
 import com.limengyuan.partner.post.service.ReviewService;

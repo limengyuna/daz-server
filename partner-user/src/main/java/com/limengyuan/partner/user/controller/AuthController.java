@@ -1,8 +1,8 @@
 package com.limengyuan.partner.user.controller;
 
-import com.limengyuan.partner.common.dto.LoginRequest;
-import com.limengyuan.partner.common.dto.LoginResponse;
-import com.limengyuan.partner.common.dto.RegisterRequest;
+import com.limengyuan.partner.common.dto.request.LoginRequest;
+import com.limengyuan.partner.common.dto.response.LoginResponse;
+import com.limengyuan.partner.common.dto.request.RegisterRequest;
 import com.limengyuan.partner.common.entity.User;
 import com.limengyuan.partner.common.result.Result;
 import com.limengyuan.partner.common.util.JwtUtils;

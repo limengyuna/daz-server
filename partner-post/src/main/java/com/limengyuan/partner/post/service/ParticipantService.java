@@ -1,12 +1,12 @@
 package com.limengyuan.partner.post.service;
 
-import com.limengyuan.partner.common.dto.ActivityVO;
-import com.limengyuan.partner.common.dto.ActivityWithApplicationsVO;
-import com.limengyuan.partner.common.dto.JoinActivityRequest;
-import com.limengyuan.partner.common.dto.MyApplicationVO;
-import com.limengyuan.partner.common.dto.ParticipantPageVO;
-import com.limengyuan.partner.common.dto.ParticipantVO;
-import com.limengyuan.partner.common.dto.ReviewRequest;
+import com.limengyuan.partner.common.dto.vo.ActivityVO;
+import com.limengyuan.partner.common.dto.vo.ActivityWithApplicationsVO;
+import com.limengyuan.partner.common.dto.request.JoinActivityRequest;
+import com.limengyuan.partner.common.dto.vo.MyApplicationVO;
+import com.limengyuan.partner.common.dto.vo.ParticipantPageVO;
+import com.limengyuan.partner.common.dto.vo.ParticipantVO;
+import com.limengyuan.partner.common.dto.request.ReviewRequest;
 import com.limengyuan.partner.common.entity.Activity;
 import com.limengyuan.partner.common.entity.Participant;
 import com.limengyuan.partner.common.result.Result;

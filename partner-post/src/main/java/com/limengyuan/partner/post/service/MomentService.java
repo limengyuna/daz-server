@@ -2,11 +2,11 @@ package com.limengyuan.partner.post.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.limengyuan.partner.common.dto.CreateMomentRequest;
-import com.limengyuan.partner.common.dto.MomentCommentVO;
-import com.limengyuan.partner.common.dto.MomentVO;
+import com.limengyuan.partner.common.dto.request.CreateMomentRequest;
+import com.limengyuan.partner.common.dto.vo.MomentCommentVO;
+import com.limengyuan.partner.common.dto.vo.MomentVO;
 import com.limengyuan.partner.common.dto.PageResult;
-import com.limengyuan.partner.common.dto.UpdateMomentRequest;
+import com.limengyuan.partner.common.dto.request.UpdateMomentRequest;
 import com.limengyuan.partner.common.entity.Moment;
 import com.limengyuan.partner.common.result.Result;
 import com.limengyuan.partner.post.mapper.MomentMapper;

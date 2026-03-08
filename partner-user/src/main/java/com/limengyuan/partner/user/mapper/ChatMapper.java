@@ -1,8 +1,8 @@
 package com.limengyuan.partner.user.mapper;
 
-import com.limengyuan.partner.common.dto.ChatConversationVO;
-import com.limengyuan.partner.common.dto.ChatMessageVO;
-import com.limengyuan.partner.common.dto.GroupChatVO;
+import com.limengyuan.partner.common.dto.vo.ChatConversationVO;
+import com.limengyuan.partner.common.dto.vo.ChatMessageVO;
+import com.limengyuan.partner.common.dto.vo.GroupChatVO;
 import com.limengyuan.partner.common.entity.ChatConversation;
 import com.limengyuan.partner.common.entity.ChatMessage;
 import org.springframework.jdbc.core.JdbcTemplate;

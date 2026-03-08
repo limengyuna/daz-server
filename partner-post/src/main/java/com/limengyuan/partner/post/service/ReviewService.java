@@ -2,9 +2,9 @@ package com.limengyuan.partner.post.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.limengyuan.partner.common.dto.ReviewVO;
-import com.limengyuan.partner.common.dto.UserReviewPageVO;
-import com.limengyuan.partner.common.dto.SubmitReviewRequest;
+import com.limengyuan.partner.common.dto.vo.ReviewVO;
+import com.limengyuan.partner.common.dto.vo.UserReviewPageVO;
+import com.limengyuan.partner.common.dto.request.SubmitReviewRequest;
 import com.limengyuan.partner.common.entity.Activity;
 import com.limengyuan.partner.common.entity.Review;
 import com.limengyuan.partner.common.result.Result;

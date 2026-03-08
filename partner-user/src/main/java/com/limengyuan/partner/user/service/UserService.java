@@ -1,6 +1,6 @@
 package com.limengyuan.partner.user.service;
 
-import com.limengyuan.partner.common.dto.UserProfileVO;
+import com.limengyuan.partner.common.dto.vo.UserProfileVO;
 import com.limengyuan.partner.common.entity.User;
 import com.limengyuan.partner.common.result.Result;
 import com.limengyuan.partner.user.mapper.UserMapper;
