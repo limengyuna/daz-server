@@ -304,11 +304,15 @@ public class ChatMapper {
                     LEFT JOIN users u ON m.sender_id = u.user_id
                     WHERE m.activity_id IS NOT NULL
                 ) last_msg ON last_msg.activity_id = a.activity_id AND last_msg.rn = 1
-                WHERE a.initiator_id = ?
+                WHERE (a.initiator_id = ?
                    OR a.activity_id IN (
                        SELECT p.activity_id FROM participants p
                        WHERE p.user_id = ? AND p.status = 1
-                   )
+                   ))
+                  AND EXISTS (
+                       SELECT 1 FROM chat_messages cm
+                       WHERE cm.activity_id = a.activity_id
+                  )
                 ORDER BY COALESCE(last_msg.created_at, a.created_at) DESC
                 """;
         try {
