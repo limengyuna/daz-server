@@ -1,5 +1,7 @@
 package com.limengyuan.partner.user.controller;
 
+import com.alibaba.csp.sentinel.annotation.SentinelResource;
+import com.alibaba.csp.sentinel.slots.block.BlockException;
 import com.limengyuan.partner.common.dto.PageResult;
 import com.limengyuan.partner.common.dto.response.UserMeResponse;
 import com.limengyuan.partner.common.dto.vo.UserProfileVO;
@@ -8,6 +10,7 @@ import com.limengyuan.partner.common.result.Result;
 import com.limengyuan.partner.common.util.JwtUtils;
 import com.limengyuan.partner.user.service.UserService;
 import com.limengyuan.partner.user.service.UserFollowService;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -16,6 +19,7 @@ import java.util.Map;
 /**
  * 用户控制器 - 用户信息相关接口
  */
+@Slf4j
 @RestController
 @RequestMapping("/api/user")
 public class UserController {
@@ -39,6 +43,7 @@ public class UserController {
      * newToken 仅当 Token 剩余有效期 < 2 天时返回，前端需更新本地存储
      */
     @GetMapping("/me")
+    @SentinelResource(value = "getUserMe", blockHandler = "getUserMeBlockHandler")
     public Result<UserMeResponse> getCurrentUser(
             @RequestHeader(value = "Authorization", required = false) String authHeader,
             @CookieValue(value = "token", required = false) String cookieToken) {
@@ -92,6 +97,7 @@ public class UserController {
      * GET /api/user/{id}
      */
     @GetMapping("/{id}")
+    @SentinelResource(value = "getUserProfile", blockHandler = "getUserProfileBlockHandler")
     public Result<UserProfileVO> getUser(@PathVariable("id") Long userId) {
         return userService.getUserProfileById(userId);
     }
@@ -101,6 +107,7 @@ public class UserController {
      * GET /api/user/list
      */
     @GetMapping("/list")
+    @SentinelResource(value = "listUsers", blockHandler = "listUsersBlockHandler")
     public Result<List<User>> listUsers() {
         return userService.getAllUsers();
     }
@@ -299,6 +306,34 @@ public class UserController {
     @GetMapping("/{userId}/follow-stats")
     public Result<Map<String, Integer>> getFollowStats(@PathVariable("userId") Long userId) {
         return userFollowService.getFollowStats(userId);
+    }
+
+    // ==================== Sentinel 降级处理方法 ====================
+
+    /**
+     * 获取当前用户信息 - 限流降级处理
+     */
+    public Result<UserMeResponse> getUserMeBlockHandler(
+            String authHeader, String cookieToken, BlockException ex) {
+        log.warn("[Sentinel] 获取当前用户信息接口被限流/降级", ex);
+        return Result.error("系统繁忙，请稍后再试");
+    }
+
+    /**
+     * 获取用户信息 - 限流降级处理
+     */
+    public Result<UserProfileVO> getUserProfileBlockHandler(
+            Long userId, BlockException ex) {
+        log.warn("[Sentinel] 获取用户信息接口被限流/降级, userId={}", userId, ex);
+        return Result.error("系统繁忙，请稍后再试");
+    }
+
+    /**
+     * 获取用户列表 - 限流降级处理
+     */
+    public Result<List<User>> listUsersBlockHandler(BlockException ex) {
+        log.warn("[Sentinel] 获取用户列表接口被限流/降级", ex);
+        return Result.error("系统繁忙，请稍后再试");
     }
 
     // ==================== 辅助方法 ====================

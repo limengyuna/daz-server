@@ -1,5 +1,7 @@
 package com.limengyuan.partner.post.controller;
 
+import com.alibaba.csp.sentinel.annotation.SentinelResource;
+import com.alibaba.csp.sentinel.slots.block.BlockException;
 import com.limengyuan.partner.common.dto.vo.ActivityVO;
 import com.limengyuan.partner.common.dto.request.CreateActivityRequest;
 import com.limengyuan.partner.common.dto.PageResult;
@@ -8,6 +10,7 @@ import com.limengyuan.partner.common.result.Result;
 import com.limengyuan.partner.common.util.JwtUtils;
 import com.limengyuan.partner.post.service.ActivityService;
 import jakarta.validation.Valid;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -15,6 +18,7 @@ import java.util.List;
 /**
  * 活动控制器 - 活动发布相关接口
  */
+@Slf4j
 @RestController
 @RequestMapping("/api/activities")
 public class ActivityController {
@@ -39,6 +43,7 @@ public class ActivityController {
      * GET /api/activities/{id}
      */
     @GetMapping("/{id}")
+    @SentinelResource(value = "getActivity", blockHandler = "getActivityBlockHandler")
     public Result<ActivityVO> getActivity(@PathVariable("id") Long activityId) {
         return activityService.getActivity(activityId);
     }
@@ -86,10 +91,30 @@ public class ActivityController {
      * @param categoryId 分类ID，可选，不传则查询所有分类
      */
     @GetMapping
+    @SentinelResource(value = "listActivities", blockHandler = "listActivitiesBlockHandler")
     public Result<PageResult<ActivityVO>> getAllActivities(
             @RequestParam(value = "page", defaultValue = "0") int page,
             @RequestParam(value = "size", defaultValue = "5") int size,
             @RequestParam(value = "categoryId", required = false) Integer categoryId) {
         return activityService.getAllActivities(page, size, categoryId);
+    }
+
+    // ==================== Sentinel 降级处理方法 ====================
+
+    /**
+     * 获取活动详情 - 限流降级处理
+     */
+    public Result<ActivityVO> getActivityBlockHandler(Long activityId, BlockException ex) {
+        log.warn("[Sentinel] 获取活动详情接口被限流/降级, activityId={}", activityId, ex);
+        return Result.error("系统繁忙，请稍后再试");
+    }
+
+    /**
+     * 获取活动列表 - 限流降级处理
+     */
+    public Result<PageResult<ActivityVO>> listActivitiesBlockHandler(
+            int page, int size, Integer categoryId, BlockException ex) {
+        log.warn("[Sentinel] 获取活动列表接口被限流/降级", ex);
+        return Result.error("系统繁忙，请稍后再试");
     }
 }

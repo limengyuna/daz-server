@@ -55,8 +55,8 @@ echo.
 :: 第四步: 上传文件到服务器
 :: ===========================
 echo [4/5] 正在上传文件到服务器...
-echo       上传 docker-compose-server.yml ...
-scp "%PROJECT_DIR%docker-compose-server.yml" %SERVER_USER%@%SERVER_IP%:%SERVER_DIR%/docker-compose.yml
+echo       上传 docker-compose.yml ...
+scp "%PROJECT_DIR%docker-compose.yml" %SERVER_USER%@%SERVER_IP%:%SERVER_DIR%/docker-compose.yml
 
 echo       上传 partner-gateway ...
 scp "%PROJECT_DIR%partner-gateway\Dockerfile" %SERVER_USER%@%SERVER_IP%:%SERVER_DIR%/partner-gateway/Dockerfile
@@ -94,10 +94,12 @@ echo   部署成功！
 echo ============================================
 echo.
 echo   服务访问地址:
-echo   - 网关 (统一入口):  http://%SERVER_IP%:8080
-echo   - 用户服务:          http://%SERVER_IP%:8081
-echo   - 帖子服务:          http://%SERVER_IP%:8082
-echo   - 文件服务:          http://%SERVER_IP%:8083
+echo   - 网关 (统一入口):      http://%SERVER_IP%:8080
+echo   - 用户服务:              http://%SERVER_IP%:8081
+echo   - 帖子服务:              http://%SERVER_IP%:8082
+echo   - 文件服务:              http://%SERVER_IP%:8083
+echo   - Sentinel 控制台:       http://%SERVER_IP%:8858  (账号密码: sentinel/sentinel)
+echo   - Zipkin 链路追踪:       http://%SERVER_IP%:9411
 echo.
 echo   服务器上的管理命令:
 echo   - 查看状态:  cd %SERVER_DIR% ^&^& docker-compose ps

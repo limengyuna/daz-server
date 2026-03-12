@@ -1,7 +1,7 @@
 version: '3.8'
 
 # ===========================
-# 找搭子系统 - Docker Compose 编排
+# 找搭子系统 - Docker Compose 编排 (统一版本)
 # ===========================
 # 使用方法:
 #   1. 先执行: mvn clean package -DskipTests
@@ -21,13 +21,34 @@ services:
     container_name: partner-gateway
     ports:
       - "8080:8080"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
-      - partner-user
-      - partner-post
-      - partner-file-service
+      partner-user:
+        condition: service_healthy
+      partner-post:
+        condition: service_healthy
+      partner-file-service:
+        condition: service_healthy
     networks:
       - partner-network
-    restart: unless-stopped
+    restart: always
+    # 内存限制：防止单个容器吃光系统内存
+    mem_limit: 384m
+    memswap_limit: 384m
+    # 健康检查：每30秒检测一次，连续3次失败则标记不健康
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:8080/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    # 日志限制：防止日志文件无限增长撑满磁盘
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   # ===========================
   # partner-user 用户服务
@@ -39,9 +60,29 @@ services:
     container_name: partner-user
     ports:
       - "8081:8081"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      # 覆盖数据库地址：容器内通过 host.docker.internal 访问宿主机 MySQL
+      - SPRING_DATASOURCE_URL=jdbc:mysql://host.docker.internal:3306/zhao_dazi_db?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai
+      - SPRING_DATASOURCE_USERNAME=root
+      - SPRING_DATASOURCE_PASSWORD=3847
     networks:
       - partner-network
-    restart: unless-stopped
+    restart: always
+    mem_limit: 384m
+    memswap_limit: 384m
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:8081/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   # ===========================
   # partner-post 帖子/活动服务
@@ -53,9 +94,29 @@ services:
     container_name: partner-post
     ports:
       - "8082:8082"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      # 覆盖数据库地址：容器内通过 host.docker.internal 访问宿主机 MySQL
+      - SPRING_DATASOURCE_URL=jdbc:mysql://host.docker.internal:3306/zhao_dazi_db?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai
+      - SPRING_DATASOURCE_USERNAME=root
+      - SPRING_DATASOURCE_PASSWORD=3847
     networks:
       - partner-network
-    restart: unless-stopped
+    restart: always
+    mem_limit: 384m
+    memswap_limit: 384m
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:8082/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   # ===========================
   # partner-file-service 文件服务
@@ -67,9 +128,79 @@ services:
     container_name: partner-file-service
     ports:
       - "8083:8083"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     networks:
       - partner-network
-    restart: unless-stopped
+    restart: always
+    mem_limit: 384m
+    memswap_limit: 384m
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:8083/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ===========================
+  # Zipkin 链路追踪服务
+  # ===========================
+  zipkin:
+    image: openzipkin/zipkin:latest
+    container_name: zipkin
+    ports:
+      - "9411:9411"
+    networks:
+      - partner-network
+    restart: always
+    # 内存限制：Zipkin 轻量级部署
+    mem_limit: 256m
+    memswap_limit: 256m
+    environment:
+      - JAVA_OPTS=-Xms64m -Xmx128m
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:9411/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ===========================
+  # Sentinel Dashboard 熔断降级控制台
+  # ===========================
+  sentinel-dashboard:
+    image: bladex/sentinel-dashboard:1.8.6
+    container_name: sentinel-dashboard
+    ports:
+      - "8858:8858"
+    # 覆盖启动命令，限制 JVM 堆内存防止 OOM
+    command: >
+      java -Xms64m -Xmx192m
+      -Dserver.port=8858
+      -Dcsp.sentinel.dashboard.server=localhost:8858
+      -Dproject.name=sentinel-dashboard
+      -jar /sentinel/app.jar
+    networks:
+      - partner-network
+    restart: always
+    # 内存限制
+    mem_limit: 384m
+    memswap_limit: 384m
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
 # ===========================
 # Docker 网络

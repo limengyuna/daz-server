@@ -1,5 +1,7 @@
 package com.limengyuan.partner.post.controller;
 
+import com.alibaba.csp.sentinel.annotation.SentinelResource;
+import com.alibaba.csp.sentinel.slots.block.BlockException;
 import com.limengyuan.partner.common.dto.request.CreateMomentRequest;
 import com.limengyuan.partner.common.dto.vo.MomentCommentVO;
 import com.limengyuan.partner.common.dto.vo.MomentVO;
@@ -9,6 +11,7 @@ import com.limengyuan.partner.common.result.Result;
 import com.limengyuan.partner.common.util.JwtUtils;
 import com.limengyuan.partner.post.service.MomentService;
 import jakarta.validation.Valid;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -28,6 +31,7 @@ import java.util.List;
  * GET    /api/moments/{id}/comments          获取评论列表
  * POST   /api/moments/{id}/comments          发表评论/回复
  */
+@Slf4j
 @RestController
 @RequestMapping("/api/moments")
 public class MomentController {
@@ -57,6 +61,7 @@ public class MomentController {
      * @param size 每页数量，默认 10
      */
     @GetMapping
+    @SentinelResource(value = "listMoments", blockHandler = "listMomentsBlockHandler")
     public Result<PageResult<MomentVO>> getMomentList(
             @RequestParam(value = "page", defaultValue = "0") int page,
             @RequestParam(value = "size", defaultValue = "10") int size) {
@@ -71,6 +76,7 @@ public class MomentController {
      * @param authHeader   Authorization 请求头，可选，传了则判断是否已点赞
      */
     @GetMapping("/{id}")
+    @SentinelResource(value = "getMoment", blockHandler = "getMomentBlockHandler")
     public Result<MomentVO> getMoment(
             @PathVariable("id") Long momentId,
             @RequestHeader(value = "Authorization", required = false) String authHeader) {
@@ -235,6 +241,26 @@ public class MomentController {
         public void setParentId(Long parentId) { this.parentId = parentId; }
         public Long getReplyToId() { return replyToId; }
         public void setReplyToId(Long replyToId) { this.replyToId = replyToId; }
+    }
+
+    // ==================== Sentinel 降级处理方法 ====================
+
+    /**
+     * 获取动态列表 - 限流降级处理
+     */
+    public Result<PageResult<MomentVO>> listMomentsBlockHandler(
+            int page, int size, BlockException ex) {
+        log.warn("[Sentinel] 获取动态列表接口被限流/降级", ex);
+        return Result.error("系统繁忙，请稍后再试");
+    }
+
+    /**
+     * 获取动态详情 - 限流降级处理
+     */
+    public Result<MomentVO> getMomentBlockHandler(
+            Long momentId, String authHeader, BlockException ex) {
+        log.warn("[Sentinel] 获取动态详情接口被限流/降级, momentId={}", momentId, ex);
+        return Result.error("系统繁忙，请稍后再试");
     }
 
     // ==================== 私有工具方法 ====================

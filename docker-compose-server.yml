@@ -148,6 +148,54 @@ services:
         max-size: "10m"
         max-file: "3"
 
+  # ===========================
+  # Zipkin 链路追踪服务
+  # ===========================
+  zipkin:
+    image: openzipkin/zipkin:latest
+    container_name: zipkin
+    ports:
+      - "9411:9411"
+    networks:
+      - partner-network
+    restart: always
+    # 内存限制：Zipkin 轻量级部署
+    mem_limit: 256m
+    memswap_limit: 256m
+    environment:
+      - JAVA_OPTS=-Xms64m -Xmx128m
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:9411/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ===========================
+  # Sentinel Dashboard 熔断降级控制台
+  # ===========================
+  sentinel-dashboard:
+    image: bladex/sentinel-dashboard:1.8.6
+    container_name: sentinel-dashboard
+    ports:
+      - "8858:8858"
+    networks:
+      - partner-network
+    restart: always
+    # 内存限制
+    mem_limit: 256m
+    memswap_limit: 256m
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
 # ===========================
 # Docker 网络
 # ===========================
