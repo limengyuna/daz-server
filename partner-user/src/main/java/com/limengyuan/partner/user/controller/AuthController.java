@@ -1,19 +1,18 @@
 package com.limengyuan.partner.user.controller;
 
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.limengyuan.partner.common.dto.request.LoginRequest;
 import com.limengyuan.partner.common.dto.response.LoginResponse;
 import com.limengyuan.partner.common.dto.request.RegisterRequest;
 import com.limengyuan.partner.common.entity.User;
 import com.limengyuan.partner.common.result.Result;
 import com.limengyuan.partner.common.util.JwtUtils;
-import org.springframework.jdbc.core.BeanPropertyRowMapper;
-import org.springframework.jdbc.core.JdbcTemplate;
+import com.limengyuan.partner.user.mapper.UserMapper;
 import org.springframework.web.bind.annotation.*;
 
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
-import java.util.List;
 
 /**
  * 认证控制器 - 登录注册
@@ -22,10 +21,10 @@ import java.util.List;
 @RequestMapping("/api/auth")
 public class AuthController {
 
-    private final JdbcTemplate jdbcTemplate;
+    private final UserMapper userMapper;
 
-    public AuthController(JdbcTemplate jdbcTemplate) {
-        this.jdbcTemplate = jdbcTemplate;
+    public AuthController(UserMapper userMapper) {
+        this.userMapper = userMapper;
     }
 
     /**
@@ -35,37 +34,29 @@ public class AuthController {
     @PostMapping("/register")
     public Result<User> register(@RequestBody RegisterRequest request) {
         // 1. 检查用户名是否已存在
-        String checkSql = "SELECT COUNT(*) FROM users WHERE username = ?";
-        Integer count = jdbcTemplate.queryForObject(checkSql, Integer.class, request.getUsername());
-        if (count != null && count > 0) {
+        User existing = userMapper.findByUsername(request.getUsername());
+        if (existing != null) {
             return Result.error("用户名已存在");
         }
 
         // 2. 密码加密
         String passwordHash = hashPassword(request.getPassword());
 
-        // 3. 插入用户1
-        String insertSql = """
-                INSERT INTO users (username, password_hash, nickname, gender, city, credit_score, status)
-                VALUES (?, ?, ?, ?, ?, 100, 1)
-                """;
-        jdbcTemplate.update(insertSql,
-                request.getUsername(),
-                passwordHash,
-                request.getNickname() != null ? request.getNickname() : request.getUsername(),
-                request.getGender() != null ? request.getGender() : 0,
-                request.getCity());
+        // 3. 构建用户实体并插入（MP 自动回填 userId）
+        User user = User.builder()
+                .username(request.getUsername())
+                .passwordHash(passwordHash)
+                .nickname(request.getNickname() != null ? request.getNickname() : request.getUsername())
+                .gender(request.getGender() != null ? request.getGender() : 0)
+                .city(request.getCity())
+                .creditScore(100)
+                .status(1)
+                .build();
 
-        // 4. 查询新创建的用户
-        String querySql = "SELECT * FROM users WHERE username = ?";
-        User user = jdbcTemplate.queryForObject(querySql, new BeanPropertyRowMapper<>(User.class),
-                request.getUsername());
+        userMapper.insert(user);
 
-        // 清除密码返回
-        if (user != null) {
-            user.setPasswordHash(null);
-        }
-
+        // 4. 清除密码返回
+        user.setPasswordHash(null);
         return Result.success("注册成功", user);
     }
 
@@ -76,14 +67,10 @@ public class AuthController {
     @PostMapping("/login")
     public Result<LoginResponse> login(@RequestBody LoginRequest request) {
         // 1. 查询用户
-        String sql = "SELECT * FROM users WHERE username = ?";
-        List<User> users = jdbcTemplate.query(sql, new BeanPropertyRowMapper<>(User.class), request.getUsername());
-
-        if (users.isEmpty()) {
+        User user = userMapper.findByUsername(request.getUsername());
+        if (user == null) {
             return Result.error("用户名或密码错误");
         }
-
-        User user = users.get(0);
 
         // 2. 验证密码
         String passwordHash = hashPassword(request.getPassword());
@@ -117,9 +104,8 @@ public class AuthController {
      */
     @GetMapping("/check-username")
     public Result<Boolean> checkUsername(@RequestParam String username) {
-        String sql = "SELECT COUNT(*) FROM users WHERE username = ?";
-        Integer count = jdbcTemplate.queryForObject(sql, Integer.class, username);
-        boolean available = count == null || count == 0;
+        User user = userMapper.findByUsername(username);
+        boolean available = (user == null);
         return Result.success(available ? "用户名可用" : "用户名已被占用", available);
     }
 

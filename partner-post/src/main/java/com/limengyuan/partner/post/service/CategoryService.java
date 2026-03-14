@@ -1,5 +1,6 @@
 package com.limengyuan.partner.post.service;
 
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.limengyuan.partner.common.entity.Category;
 import com.limengyuan.partner.post.mapper.CategoryMapper;
 import org.springframework.stereotype.Service;
@@ -22,13 +23,17 @@ public class CategoryService {
      * 获取所有启用的分类
      */
     public List<Category> getActiveCategories() {
-        return categoryMapper.findAllActive();
+        QueryWrapper<Category> wrapper = new QueryWrapper<>();
+        wrapper.eq("is_active", 1).orderByAsc("sort_order");
+        return categoryMapper.selectList(wrapper);
     }
 
     /**
      * 获取所有分类
      */
     public List<Category> getAllCategories() {
-        return categoryMapper.findAll();
+        QueryWrapper<Category> wrapper = new QueryWrapper<>();
+        wrapper.orderByAsc("sort_order");
+        return categoryMapper.selectList(wrapper);
     }
 }

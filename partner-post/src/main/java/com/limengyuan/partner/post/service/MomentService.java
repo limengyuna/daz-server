@@ -1,5 +1,7 @@
 package com.limengyuan.partner.post.service;
 
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.limengyuan.partner.common.dto.request.CreateMomentRequest;
@@ -14,7 +16,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.Optional;
 
 /**
  * 动态服务层
@@ -35,9 +36,6 @@ public class MomentService {
 
     /**
      * 发布动态
-     *
-     * @param request 发布请求
-     * @return 发布结果
      */
     public Result<MomentVO> createMoment(CreateMomentRequest request) {
         // 处理图片列表为 JSON 字符串
@@ -59,30 +57,28 @@ public class MomentService {
                 .visibility(request.getVisibility() != null ? request.getVisibility() : 0)
                 .build();
 
-        Long momentId = momentMapper.insert(moment);
-        if (momentId == null) {
+        // MP 的 insert 自动回填 momentId
+        int rows = momentMapper.insert(moment);
+        if (rows == 0) {
             return Result.error("发布失败");
         }
 
-        return momentMapper.findByIdWithUser(momentId)
-                .map(vo -> Result.success("发布成功", vo))
-                .orElse(Result.error("发布成功但查询失败"));
+        MomentVO vo = momentMapper.findByIdWithUser(moment.getMomentId());
+        if (vo != null) {
+            return Result.success("发布成功", vo);
+        }
+        return Result.error("发布成功但查询失败");
     }
 
     /**
      * 查看动态详情 (同时增加浏览数)
-     *
-     * @param momentId  动态ID
-     * @param currentUserId 当前登录用户ID，用于判断是否已点赞，未登录传 null
-     * @return 动态详情
      */
     @Transactional
     public Result<MomentVO> getMoment(Long momentId, Long currentUserId) {
-        Optional<MomentVO> optional = momentMapper.findByIdWithUser(momentId);
-        if (optional.isEmpty()) {
+        MomentVO vo = momentMapper.findByIdWithUser(momentId);
+        if (vo == null) {
             return Result.error("动态不存在或已被删除");
         }
-        MomentVO vo = optional.get();
 
         // 增加浏览数
         momentMapper.incrementViewCount(momentId);
@@ -90,7 +86,7 @@ public class MomentService {
 
         // 判断当前用户是否已点赞
         if (currentUserId != null) {
-            vo.setLiked(momentMapper.existsLike(momentId, currentUserId));
+            vo.setLiked(momentMapper.existsLikeCount(momentId, currentUserId) > 0);
         } else {
             vo.setLiked(false);
         }
@@ -100,23 +96,17 @@ public class MomentService {
 
     /**
      * 获取动态广场列表（分页，只显示公开动态）
-     *
-     * @param page 页码，从 0 开始
-     * @param size 每页数量
-     * @return 分页结果
      */
     @Transactional(readOnly = true)
     public Result<PageResult<MomentVO>> getMomentList(int page, int size) {
-        List<MomentVO> list = momentMapper.findAllPublicWithUser(page, size);
+        long offset = (long) page * size;
+        List<MomentVO> list = momentMapper.findAllPublicWithUser(size, offset);
         long total = momentMapper.countAllPublic();
         return Result.success(PageResult.of(list, total, page, size));
     }
 
     /**
      * 查看当前登录用户自己的动态列表
-     *
-     * @param userId 用户ID
-     * @return 动态列表
      */
     @Transactional(readOnly = true)
     public Result<List<MomentVO>> getMyMoments(Long userId) {
@@ -126,9 +116,6 @@ public class MomentService {
 
     /**
      * 查看指定用户的动态列表（公开主页）
-     *
-     * @param userId 目标用户ID
-     * @return 动态列表
      */
     @Transactional(readOnly = true)
     public Result<List<MomentVO>> getUserMoments(Long userId) {
@@ -138,11 +125,7 @@ public class MomentService {
 
     /**
      * 编辑动态（只有发布者本人可以操作，只更新传入的非 null 字段）
-     *
-     * @param momentId 动态ID
-     * @param userId   当前登录用户ID
-     * @param request  编辑请求
-     * @return 更新后的动态详情
+     * 使用 MyBatis-Plus 的 UpdateWrapper 实现动态 SQL
      */
     @Transactional
     public Result<MomentVO> updateMoment(Long momentId, Long userId, UpdateMomentRequest request) {
@@ -166,23 +149,32 @@ public class MomentService {
             return Result.error(400, "请至少修改一个字段");
         }
 
-        int rows = momentMapper.update(momentId, userId, content, imagesJson,
-                locationName, locationAddress, request.getVisibility());
+        // 使用 UpdateWrapper 动态拼接 SQL
+        UpdateWrapper<Moment> updateWrapper = new UpdateWrapper<>();
+        updateWrapper.eq("moment_id", momentId)
+                     .eq("user_id", userId)
+                     .eq("status", 1); // 只更新未删除的
+
+        if (content != null) updateWrapper.set("content", content);
+        if (imagesJson != null) updateWrapper.set("images", imagesJson);
+        if (locationName != null) updateWrapper.set("location_name", locationName);
+        if (locationAddress != null) updateWrapper.set("location_address", locationAddress);
+        if (request.getVisibility() != null) updateWrapper.set("visibility", request.getVisibility());
+
+        int rows = momentMapper.update(null, updateWrapper);
         if (rows == 0) {
             return Result.error("更新失败，动态不存在或无权限编辑");
         }
 
-        return momentMapper.findByIdWithUser(momentId)
-                .map(Result::success)
-                .orElse(Result.error("更新成功但查询失败"));
+        MomentVO updated = momentMapper.findByIdWithUser(momentId);
+        if (updated != null) {
+            return Result.success(updated);
+        }
+        return Result.error("更新成功但查询失败");
     }
 
     /**
      * 删除动态（软删除，只有发布者本人可以删除）
-     *
-     * @param momentId 动态ID
-     * @param userId   当前登录用户ID
-     * @return 操作结果
      */
     public Result<Void> deleteMoment(Long momentId, Long userId) {
         int rows = momentMapper.deleteSoft(momentId, userId);
@@ -196,14 +188,10 @@ public class MomentService {
 
     /**
      * 点赞动态
-     *
-     * @param momentId 动态ID
-     * @param userId   当前登录用户ID
-     * @return 操作结果
      */
     @Transactional
     public Result<Void> likeMoment(Long momentId, Long userId) {
-        if (momentMapper.existsLike(momentId, userId)) {
+        if (momentMapper.existsLikeCount(momentId, userId) > 0) {
             return Result.error(400, "已经点赞过了");
         }
         momentMapper.insertLike(momentId, userId);
@@ -213,10 +201,6 @@ public class MomentService {
 
     /**
      * 取消点赞
-     *
-     * @param momentId 动态ID
-     * @param userId   当前登录用户ID
-     * @return 操作结果
      */
     @Transactional
     public Result<Void> unlikeMoment(Long momentId, Long userId) {
@@ -232,13 +216,6 @@ public class MomentService {
 
     /**
      * 发表评论或回复
-     *
-     * @param momentId  动态ID
-     * @param userId    评论用户ID
-     * @param parentId  父评论ID，发一级评论时传 null
-     * @param replyToId 被回复人用户ID，发一级评论时传 null
-     * @param content   评论内容
-     * @return 操作结果
      */
     @Transactional
     public Result<Long> addComment(Long momentId, Long userId,
@@ -250,20 +227,21 @@ public class MomentService {
             return Result.error("评论内容不能超过500字");
         }
 
-        Long commentId = momentMapper.insertComment(momentId, userId, parentId, replyToId, content.trim());
-        if (commentId == null) {
+        // 使用 MomentMapper 的内部类封装评论参数
+        MomentMapper.MomentComment comment = new MomentMapper.MomentComment(
+                momentId, userId, parentId, replyToId, content.trim());
+        momentMapper.insertComment(comment);
+
+        if (comment.getCommentId() == null) {
             return Result.error("评论失败");
         }
         // 同步更新动态评论数
         momentMapper.incrementCommentCount(momentId);
-        return Result.success("评论成功", commentId);
+        return Result.success("评论成功", comment.getCommentId());
     }
 
     /**
      * 获取动态的评论列表（两级结构）
-     *
-     * @param momentId 动态ID
-     * @return 一级评论列表，每条一级评论内嵌 replies 回复列表
      */
     @Transactional(readOnly = true)
     public Result<List<MomentCommentVO>> getComments(Long momentId) {

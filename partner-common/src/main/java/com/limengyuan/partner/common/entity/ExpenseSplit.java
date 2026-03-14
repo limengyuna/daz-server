@@ -1,5 +1,8 @@
 package com.limengyuan.partner.common.entity;
 
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -15,11 +18,13 @@ import java.time.LocalDateTime;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@TableName("expense_splits")
 public class ExpenseSplit {
 
     /**
      * 分摊记录ID
      */
+    @TableId(value = "split_id", type = IdType.AUTO)
     private Long splitId;
 
     /**

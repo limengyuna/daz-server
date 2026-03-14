@@ -1,11 +1,13 @@
 package com.limengyuan.partner.post.service;
 
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.limengyuan.partner.common.dto.vo.ReviewVO;
 import com.limengyuan.partner.common.dto.vo.UserReviewPageVO;
 import com.limengyuan.partner.common.dto.request.SubmitReviewRequest;
 import com.limengyuan.partner.common.entity.Activity;
+import com.limengyuan.partner.common.entity.Participant;
 import com.limengyuan.partner.common.entity.Review;
 import com.limengyuan.partner.common.result.Result;
 import com.limengyuan.partner.post.mapper.ActivityMapper;
@@ -17,7 +19,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
 /**
  * 评价服务层 - 封装评价相关业务逻辑
@@ -28,10 +29,8 @@ public class ReviewService {
 
     /** 评价窗口期（天） */
     private static final int REVIEW_WINDOW_DAYS = 7;
-
     /** 活动状态：已结束 */
     private static final int ACTIVITY_STATUS_ENDED = 2;
-
     /** 参与者状态：已通过 */
     private static final int PARTICIPANT_STATUS_APPROVED = 1;
 
@@ -59,10 +58,6 @@ public class ReviewService {
 
     /**
      * 提交评价
-     *
-     * @param reviewerId 评价人ID（从Token中获取）
-     * @param request    评价请求
-     * @return 提交结果
      */
     public Result<Void> submitReview(Long reviewerId, SubmitReviewRequest request) {
         // 1. 参数校验
@@ -79,21 +74,19 @@ public class ReviewService {
         }
 
         // 3. 查询活动信息
-        Optional<Activity> activityOpt = activityMapper.findById(request.getActivityId());
-        if (activityOpt.isEmpty()) {
+        Activity activity = activityMapper.selectById(request.getActivityId());
+        if (activity == null) {
             return Result.error("活动不存在");
         }
-        Activity activity = activityOpt.get();
 
-        // 4. 检查活动是否已结束（status=2 或 end_time 已过期）
+        // 4. 检查活动是否已结束
         boolean isEnded = activity.getStatus() == ACTIVITY_STATUS_ENDED;
         boolean isExpired = activity.getEndTime() != null && activity.getEndTime().isBefore(LocalDateTime.now());
         if (!isEnded && !isExpired) {
             return Result.error("活动尚未结束，暂时无法评价");
         }
 
-        // 5. 检查是否在评价窗口期内（7天）
-        // 以实际结束时间为准：如果 status=2，用 updatedAt；否则用 endTime
+        // 5. 检查是否在评价窗口期内
         LocalDateTime actualEndTime;
         if (isEnded) {
             actualEndTime = activity.getUpdatedAt();
@@ -117,9 +110,12 @@ public class ReviewService {
         }
 
         // 8. 检查是否重复评价
-        Optional<Review> existing = reviewMapper.findByActivityAndReviewerAndReviewee(
-                request.getActivityId(), reviewerId, request.getRevieweeId());
-        if (existing.isPresent()) {
+        QueryWrapper<Review> reviewWrapper = new QueryWrapper<>();
+        reviewWrapper.eq("activity_id", request.getActivityId())
+                     .eq("reviewer_id", reviewerId)
+                     .eq("reviewee_id", request.getRevieweeId());
+        Review existing = reviewMapper.selectOne(reviewWrapper);
+        if (existing != null) {
             return Result.error("您已经评价过该用户了");
         }
 
@@ -133,7 +129,7 @@ public class ReviewService {
             }
         }
 
-        // 10. 构建评价实体并保存
+        // 10. 构建评价实体并保存（MP 自动回填 reviewId）
         Review review = Review.builder()
                 .activityId(request.getActivityId())
                 .reviewerId(reviewerId)
@@ -143,8 +139,8 @@ public class ReviewService {
                 .tags(tagsJson)
                 .build();
 
-        Long reviewId = reviewMapper.insert(review);
-        if (reviewId == null) {
+        int rows = reviewMapper.insert(review);
+        if (rows == 0) {
             return Result.error("评价提交失败");
         }
 
@@ -159,9 +155,6 @@ public class ReviewService {
 
     /**
      * 获取活动下的所有评价
-     *
-     * @param activityId 活动ID
-     * @return 评价列表
      */
     public Result<List<ReviewVO>> getActivityReviews(Long activityId) {
         List<ReviewVO> reviews = reviewMapper.findByActivityId(activityId);
@@ -170,16 +163,16 @@ public class ReviewService {
 
     /**
      * 获取某用户收到的评价（分页 + 统计信息）
-     *
-     * @param userId 用户ID
-     * @param page   页码（从0开始）
-     * @param size   每页数量
-     * @return 分页评价列表 + 平均评分 + 评价总数
      */
     public Result<UserReviewPageVO> getUserReviews(Long userId, int page, int size) {
         int offset = page * size;
         List<ReviewVO> reviews = reviewMapper.findByRevieweeIdPaged(userId, offset, size);
-        long total = reviewMapper.countByRevieweeId(userId);
+
+        // 用 QueryWrapper 统计评价数量
+        QueryWrapper<Review> countWrapper = new QueryWrapper<>();
+        countWrapper.eq("reviewee_id", userId);
+        long total = reviewMapper.selectCount(countWrapper);
+
         Double avgScore = reviewMapper.getAverageScoreByRevieweeId(userId);
         int totalPages = size > 0 ? (int) Math.ceil((double) total / size) : 0;
 
@@ -198,11 +191,6 @@ public class ReviewService {
 
     /**
      * 判断用户是否是活动的成员（参与者或发起人）
-     *
-     * @param activityId  活动ID
-     * @param userId      用户ID
-     * @param initiatorId 活动发起人ID
-     * @return 是否是活动成员
      */
     private boolean isActivityMember(Long activityId, Long userId, Long initiatorId) {
         // 是发起人
@@ -210,8 +198,9 @@ public class ReviewService {
             return true;
         }
         // 是已通过的参与者
-        return participantMapper.findByActivityIdAndUserId(activityId, userId)
-                .map(p -> p.getStatus() == PARTICIPANT_STATUS_APPROVED)
-                .orElse(false);
+        QueryWrapper<Participant> wrapper = new QueryWrapper<>();
+        wrapper.eq("activity_id", activityId).eq("user_id", userId);
+        Participant p = participantMapper.selectOne(wrapper);
+        return p != null && p.getStatus() == PARTICIPANT_STATUS_APPROVED;
     }
 }

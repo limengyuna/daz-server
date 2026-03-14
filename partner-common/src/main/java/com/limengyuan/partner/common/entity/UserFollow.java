@@ -1,5 +1,8 @@
 package com.limengyuan.partner.common.entity;
 
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -14,11 +17,13 @@ import java.time.LocalDateTime;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@TableName("user_follows")
 public class UserFollow {
     
     /**
      * 关注记录ID
      */
+    @TableId(value = "follow_id", type = IdType.AUTO)
     private Long followId;
     
     /**

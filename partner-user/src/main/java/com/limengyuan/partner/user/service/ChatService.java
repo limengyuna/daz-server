@@ -7,7 +7,8 @@ import com.limengyuan.partner.common.dto.request.SendMessageRequest;
 import com.limengyuan.partner.common.entity.ChatConversation;
 import com.limengyuan.partner.common.entity.ChatMessage;
 import com.limengyuan.partner.common.result.Result;
-import com.limengyuan.partner.user.mapper.ChatMapper;
+import com.limengyuan.partner.user.mapper.ChatConversationMapper;
+import com.limengyuan.partner.user.mapper.ChatMessageMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,10 +21,12 @@ import java.util.List;
 @Transactional
 public class ChatService {
 
-    private final ChatMapper chatMapper;
+    private final ChatMessageMapper chatMessageMapper;
+    private final ChatConversationMapper chatConversationMapper;
 
-    public ChatService(ChatMapper chatMapper) {
-        this.chatMapper = chatMapper;
+    public ChatService(ChatMessageMapper chatMessageMapper, ChatConversationMapper chatConversationMapper) {
+        this.chatMessageMapper = chatMessageMapper;
+        this.chatConversationMapper = chatConversationMapper;
     }
 
     // ============================
@@ -32,12 +35,9 @@ public class ChatService {
 
     /**
      * 获取当前用户的所有私聊会话列表
-     *
-     * @param userId 当前用户ID
-     * @return 会话列表
      */
     public Result<List<ChatConversationVO>> getConversations(Long userId) {
-        List<ChatConversationVO> conversations = chatMapper.findConversationsByUserId(userId);
+        List<ChatConversationVO> conversations = chatConversationMapper.findConversationsByUserId(userId);
         return Result.success(conversations);
     }
 
@@ -45,10 +45,6 @@ public class ChatService {
      * 获取或创建与目标用户的私聊会话
      * <p>
      * 保证 user_a_id 始终为较小的ID，user_b_id 为较大的ID
-     *
-     * @param currentUserId 当前用户ID
-     * @param targetUserId  目标用户ID
-     * @return 会话信息
      */
     public Result<ChatConversationVO> getOrCreateConversation(Long currentUserId, Long targetUserId) {
         if (currentUserId.equals(targetUserId)) {
@@ -60,14 +56,19 @@ public class ChatService {
         Long userBId = Math.max(currentUserId, targetUserId);
 
         // 查找已有会话
-        ChatConversation existing = chatMapper.findConversationByUsers(userAId, userBId).orElse(null);
+        ChatConversation existing = chatConversationMapper.findConversationByUsers(userAId, userBId);
 
         Long conversationId;
         if (existing != null) {
             conversationId = existing.getConversationId();
         } else {
-            // 创建新会话
-            conversationId = chatMapper.insertConversation(userAId, userBId);
+            // 创建新会话（MP 的 insert 自动回填 ID）
+            ChatConversation newConv = ChatConversation.builder()
+                    .userAId(userAId)
+                    .userBId(userBId)
+                    .build();
+            chatConversationMapper.insert(newConv);
+            conversationId = newConv.getConversationId();
             if (conversationId == null) {
                 return Result.error("创建会话失败");
             }
@@ -90,18 +91,10 @@ public class ChatService {
 
     /**
      * 获取私聊消息列表（分页）
-     * <p>
-     * 会校验当前用户是否是该会话的参与者
-     *
-     * @param conversationId 会话ID
-     * @param userId         当前用户ID（用于权限校验）
-     * @param page           页码（从0开始）
-     * @param size           每页数量
-     * @return 消息列表
      */
     public Result<List<ChatMessageVO>> getPrivateMessages(Long conversationId, Long userId, int page, int size) {
         // 查询会话，校验权限
-        ChatConversation conversation = chatMapper.findConversationById(conversationId).orElse(null);
+        ChatConversation conversation = chatConversationMapper.selectById(conversationId);
         if (conversation == null) {
             return Result.error("会话不存在");
         }
@@ -111,19 +104,14 @@ public class ChatService {
             return Result.error("无权查看该会话");
         }
 
-        List<ChatMessageVO> messages = chatMapper.findPrivateMessages(
-                conversation.getUserAId(), conversation.getUserBId(), page, size);
+        int offset = page * size;
+        List<ChatMessageVO> messages = chatMessageMapper.findPrivateMessages(
+                conversation.getUserAId(), conversation.getUserBId(), size, offset);
         return Result.success(messages);
     }
 
     /**
      * 发送私聊消息
-     * <p>
-     * 自动查找或创建会话，插入消息并更新会话最后消息
-     *
-     * @param senderId 发送者ID
-     * @param request  发送消息请求
-     * @return 发送结果
      */
     public Result<ChatMessageVO> sendPrivateMessage(Long senderId, SendMessageRequest request) {
         if (request.getReceiverId() == null) {
@@ -138,18 +126,23 @@ public class ChatService {
         Long userBId = Math.max(senderId, request.getReceiverId());
 
         // 查找或创建会话
-        ChatConversation conversation = chatMapper.findConversationByUsers(userAId, userBId).orElse(null);
+        ChatConversation conversation = chatConversationMapper.findConversationByUsers(userAId, userBId);
         Long conversationId;
         if (conversation != null) {
             conversationId = conversation.getConversationId();
         } else {
-            conversationId = chatMapper.insertConversation(userAId, userBId);
+            ChatConversation newConv = ChatConversation.builder()
+                    .userAId(userAId)
+                    .userBId(userBId)
+                    .build();
+            chatConversationMapper.insert(newConv);
+            conversationId = newConv.getConversationId();
             if (conversationId == null) {
                 return Result.error("创建会话失败");
             }
         }
 
-        // 构建消息实体
+        // 构建消息实体并插入（MP 的 insert 自动回填 messageId）
         ChatMessage message = ChatMessage.builder()
                 .senderId(senderId)
                 .receiverId(request.getReceiverId())
@@ -157,18 +150,22 @@ public class ChatService {
                 .msgType(request.getMsgType() != null ? request.getMsgType() : 1)
                 .build();
 
-        // 插入消息
-        Long messageId = chatMapper.insertMessage(message);
-        if (messageId == null) {
+        chatMessageMapper.insert(message);
+        if (message.getMessageId() == null) {
             return Result.error("发送消息失败");
         }
 
         // 更新会话最后消息
-        chatMapper.updateConversationLastMessage(conversationId, request.getContent());
+        // 截取消息预览（最多255字符）
+        String preview = request.getContent();
+        if (preview != null && preview.length() > 255) {
+            preview = preview.substring(0, 255);
+        }
+        chatConversationMapper.updateConversationLastMessage(conversationId, preview);
 
         // 构建返回 VO
         ChatMessageVO vo = ChatMessageVO.builder()
-                .messageId(messageId)
+                .messageId(message.getMessageId())
                 .senderId(senderId)
                 .content(request.getContent())
                 .msgType(message.getMsgType())
@@ -183,12 +180,9 @@ public class ChatService {
 
     /**
      * 获取当前用户参与的所有群聊列表
-     *
-     * @param userId 当前用户ID
-     * @return 群聊列表
      */
     public Result<List<GroupChatVO>> getMyGroupChats(Long userId) {
-        List<GroupChatVO> groupChats = chatMapper.findGroupChatsByUserId(userId);
+        List<GroupChatVO> groupChats = chatMessageMapper.findGroupChatsByUserId(userId);
         return Result.success(groupChats);
     }
 
@@ -198,30 +192,22 @@ public class ChatService {
 
     /**
      * 获取群聊消息列表（分页）
-     *
-     * @param activityId 活动ID
-     * @param page       页码（从0开始）
-     * @param size       每页数量
-     * @return 消息列表
      */
     public Result<List<ChatMessageVO>> getGroupMessages(Long activityId, int page, int size) {
-        List<ChatMessageVO> messages = chatMapper.findGroupMessages(activityId, page, size);
+        int offset = page * size;
+        List<ChatMessageVO> messages = chatMessageMapper.findGroupMessages(activityId, size, offset);
         return Result.success(messages);
     }
 
     /**
      * 发送群聊消息
-     *
-     * @param senderId 发送者ID
-     * @param request  发送消息请求
-     * @return 发送结果
      */
     public Result<ChatMessageVO> sendGroupMessage(Long senderId, SendMessageRequest request) {
         if (request.getActivityId() == null) {
             return Result.error("活动ID不能为空");
         }
 
-        // 构建消息实体
+        // 构建消息实体并插入（MP 的 insert 自动回填 messageId）
         ChatMessage message = ChatMessage.builder()
                 .senderId(senderId)
                 .activityId(request.getActivityId())
@@ -229,15 +215,14 @@ public class ChatService {
                 .msgType(request.getMsgType() != null ? request.getMsgType() : 1)
                 .build();
 
-        // 插入消息
-        Long messageId = chatMapper.insertMessage(message);
-        if (messageId == null) {
+        chatMessageMapper.insert(message);
+        if (message.getMessageId() == null) {
             return Result.error("发送消息失败");
         }
 
         // 构建返回 VO
         ChatMessageVO vo = ChatMessageVO.builder()
-                .messageId(messageId)
+                .messageId(message.getMessageId())
                 .senderId(senderId)
                 .content(request.getContent())
                 .msgType(message.getMsgType())

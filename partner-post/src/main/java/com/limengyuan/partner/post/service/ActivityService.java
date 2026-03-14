@@ -42,9 +42,6 @@ public class ActivityService {
 
     /**
      * 创建活动
-     * 
-     * @param request 创建活动请求
-     * @return 创建结果
      */
     public Result<Activity> createActivity(CreateActivityRequest request) {
         // 1. 处理 images 为 JSON 字符串
@@ -83,40 +80,36 @@ public class ActivityService {
                 .status(STATUS_RECRUITING)
                 .build();
 
-        // 3. 插入数据库
-        Long activityId = activityMapper.insert(activity);
-        if (activityId == null) {
+        // 3. 插入数据库（MP 自动回填 activityId 到 entity）
+        int rows = activityMapper.insert(activity);
+        if (rows == 0) {
             return Result.error("创建活动失败");
         }
 
         // 4. 查询并返回新创建的活动
-        return activityMapper.findById(activityId)
-                .map(a -> Result.success("发布成功", a))
-                .orElse(Result.error("活动创建成功但查询失败"));
+        Activity created = activityMapper.selectById(activity.getActivityId());
+        if (created != null) {
+            return Result.success("发布成功", created);
+        }
+        return Result.error("活动创建成功但查询失败");
     }
 
     /**
      * 获取活动详情（包含已通过审核的参与者列表）
-     * 
-     * @param activityId 活动ID
-     * @return 活动详情
      */
     public Result<ActivityVO> getActivity(Long activityId) {
-        return activityMapper.findByIdWithUser(activityId)
-                .map(activity -> {
-                    // 查询已通过审核的参与者列表
-                    List<ParticipantVO> participants = participantMapper.findApprovedByActivityIdWithUser(activityId);
-                    activity.setParticipants(participants);
-                    return Result.success(activity);
-                })
-                .orElse(Result.error("活动不存在"));
+        ActivityVO activity = activityMapper.findByIdWithUser(activityId);
+        if (activity == null) {
+            return Result.error("活动不存在");
+        }
+        // 查询已通过审核的参与者列表
+        List<ParticipantVO> participants = participantMapper.findApprovedByActivityIdWithUser(activityId);
+        activity.setParticipants(participants);
+        return Result.success(activity);
     }
 
     /**
      * 获取用户发布的活动列表
-     * 
-     * @param userId 用户ID
-     * @return 活动列表
      */
     public Result<List<ActivityVO>> getActivitiesByUser(Long userId) {
         List<ActivityVO> activities = activityMapper.findByInitiatorIdWithUser(userId);
@@ -125,15 +118,20 @@ public class ActivityService {
 
     /**
      * 分页获取所有活动列表，支持按分类筛选
-     * 
-     * @param page       页码 (从0开始)
-     * @param size       每页数量
-     * @param categoryId 分类ID，为null时查询所有
-     * @return 分页结果，包含总数信息
      */
     public Result<PageResult<ActivityVO>> getAllActivities(int page, int size, Integer categoryId) {
-        List<ActivityVO> activities = activityMapper.findAllWithUser(page, size, categoryId);
-        long total = activityMapper.countAll(categoryId);
+        int offset = page * size;
+        List<ActivityVO> activities;
+        long total;
+
+        if (categoryId != null) {
+            activities = activityMapper.findAllWithUserByCategory(categoryId, size, offset);
+            total = activityMapper.countAllByCategory(categoryId);
+        } else {
+            activities = activityMapper.findAllWithUser(size, offset);
+            total = activityMapper.countAll();
+        }
+
         return Result.success(PageResult.of(activities, total, page, size));
     }
 }

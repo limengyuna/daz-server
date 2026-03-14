@@ -1,5 +1,6 @@
 package com.limengyuan.partner.post.service;
 
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.limengyuan.partner.common.dto.request.CreateExpenseRequest;
@@ -48,11 +49,6 @@ public class ExpenseService {
 
     /**
      * 添加一笔支出并自动生成分摊记录
-     *
-     * @param activityId 活动ID
-     * @param payerId    付款人ID（当前登录用户）
-     * @param request    创建支出请求
-     * @return 创建结果
      */
     public Result<ExpenseVO> createExpense(Long activityId, Long payerId, CreateExpenseRequest request) {
         // 1. 处理图片为 JSON 字符串
@@ -74,10 +70,10 @@ public class ExpenseService {
                     .map(ParticipantVO::getUserId)
                     .collect(Collectors.toCollection(ArrayList::new));
 
-            // 查询活动信息，将发起人也加入分摊列表（发起人不在participants表中）
-            Optional<Activity> activityOpt = activityMapper.findById(activityId);
-            if (activityOpt.isPresent()) {
-                Long initiatorId = activityOpt.get().getInitiatorId();
+            // 查询活动信息，将发起人也加入分摊列表
+            Activity activity = activityMapper.selectById(activityId);
+            if (activity != null) {
+                Long initiatorId = activity.getInitiatorId();
                 if (!userIds.contains(initiatorId)) {
                     userIds.add(initiatorId);
                 }
@@ -90,7 +86,7 @@ public class ExpenseService {
             return Result.error("没有可分摊的参与者");
         }
 
-        // 3. 构建支出实体并插入
+        // 3. 构建支出实体并插入（MP 自动回填 expenseId）
         ActivityExpense expense = ActivityExpense.builder()
                 .activityId(activityId)
                 .payerId(payerId)
@@ -102,10 +98,11 @@ public class ExpenseService {
                 .splitType(request.getSplitType() != null ? request.getSplitType() : 1)
                 .build();
 
-        Long expenseId = expenseMapper.insert(expense);
-        if (expenseId == null) {
+        int rows = expenseMapper.insert(expense);
+        if (rows == 0) {
             return Result.error("添加支出失败");
         }
+        Long expenseId = expense.getExpenseId();
 
         // 4. 根据分摊方式计算每人的分摊金额
         List<ExpenseSplit> splits = calculateSplits(expenseId, request.getAmount(),
@@ -116,8 +113,10 @@ public class ExpenseService {
             return Result.error("计算分摊金额失败");
         }
 
-        // 5. 批量插入分摊记录
-        expenseSplitMapper.batchInsert(splits);
+        // 5. 逐条插入分摊记录
+        for (ExpenseSplit split : splits) {
+            expenseSplitMapper.insert(split);
+        }
 
         // 6. 查询并返回完整的支出详情
         return getExpenseDetail(expenseId);
@@ -140,31 +139,32 @@ public class ExpenseService {
      * 获取某笔支出的详情（含分摊明细）
      */
     public Result<ExpenseVO> getExpenseDetail(Long expenseId) {
-        return expenseMapper.findByIdWithPayer(expenseId)
-                .map(expense -> {
-                    List<ExpenseSplitVO> splits = expenseSplitMapper.findByExpenseIdWithUser(expenseId);
-                    expense.setSplits(splits);
-                    return Result.success(expense);
-                })
-                .orElse(Result.error("支出记录不存在"));
+        ExpenseVO expense = expenseMapper.findByIdWithPayer(expenseId);
+        if (expense == null) {
+            return Result.error("支出记录不存在");
+        }
+        List<ExpenseSplitVO> splits = expenseSplitMapper.findByExpenseIdWithUser(expenseId);
+        expense.setSplits(splits);
+        return Result.success(expense);
     }
 
     /**
      * 删除某笔支出（同时删除分摊记录）
      */
     public Result<Void> deleteExpense(Long expenseId, Long userId) {
-        // 1. 查询支出记录，验证权限（只有付款人可以删除）
-        return expenseMapper.findById(expenseId)
-                .map(expense -> {
-                    if (!expense.getPayerId().equals(userId)) {
-                        return Result.<Void>error("只有付款人可以删除该支出");
-                    }
-                    // 2. 先删除分摊记录，再删除支出记录
-                    expenseSplitMapper.deleteByExpenseId(expenseId);
-                    expenseMapper.deleteById(expenseId);
-                    return Result.<Void>success("删除成功", null);
-                })
-                .orElse(Result.error("支出记录不存在"));
+        ActivityExpense expense = expenseMapper.selectById(expenseId);
+        if (expense == null) {
+            return Result.error("支出记录不存在");
+        }
+        if (!expense.getPayerId().equals(userId)) {
+            return Result.error("只有付款人可以删除该支出");
+        }
+        // 先删除分摊记录，再删除支出记录
+        QueryWrapper<ExpenseSplit> wrapper = new QueryWrapper<>();
+        wrapper.eq("expense_id", expenseId);
+        expenseSplitMapper.delete(wrapper);
+        expenseMapper.deleteById(expenseId);
+        return Result.success("删除成功", null);
     }
 
     /**
@@ -200,21 +200,16 @@ public class ExpenseService {
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         // 3. 计算每个人的垫付总额和应分摊总额
-        // key = userId, value = 该用户的垫付总额
         Map<Long, BigDecimal> paidMap = new HashMap<>();
-        // key = userId, value = 该用户的应分摊总额
         Map<Long, BigDecimal> owedMap = new HashMap<>();
-        // 收集所有用户信息
         Map<Long, String> nicknameMap = new HashMap<>();
         Map<Long, String> avatarMap = new HashMap<>();
 
         for (ExpenseVO expense : expenses) {
-            // 累加垫付总额
             paidMap.merge(expense.getPayerId(), expense.getAmount(), BigDecimal::add);
             nicknameMap.putIfAbsent(expense.getPayerId(), expense.getPayerNickname());
             avatarMap.putIfAbsent(expense.getPayerId(), expense.getPayerAvatar());
 
-            // 查询该笔支出的分摊明细
             List<ExpenseSplitVO> splits = expenseSplitMapper.findByExpenseIdWithUser(expense.getExpenseId());
             for (ExpenseSplitVO split : splits) {
                 owedMap.merge(split.getUserId(), split.getAmount(), BigDecimal::add);
@@ -223,7 +218,7 @@ public class ExpenseService {
             }
         }
 
-        // 4. 计算每个人的净额（垫付 - 应分摊），正数=别人欠我，负数=我欠别人
+        // 4. 计算每个人的净额
         Map<Long, BigDecimal> balanceMap = new HashMap<>();
         Set<Long> allUserIds = new HashSet<>();
         allUserIds.addAll(paidMap.keySet());
@@ -247,7 +242,7 @@ public class ExpenseService {
                         .build())
                 .collect(Collectors.toList());
 
-        // 6. 计算简化后的债务关系（贪心算法）
+        // 6. 计算简化后的债务关系
         List<SettlementVO.DebtItem> debts = calculateDebts(balanceMap, nicknameMap, avatarMap);
 
         // 7. 构建并返回结算汇总
@@ -274,13 +269,6 @@ public class ExpenseService {
 
     /**
      * 根据分摊方式计算每个人的分摊金额
-     *
-     * @param expenseId     支出ID
-     * @param totalAmount   总金额
-     * @param splitType     分摊方式
-     * @param splitUserIds  参与分摊的用户ID列表
-     * @param customAmounts 指定金额时的自定义金额映射
-     * @return 分摊记录列表
      */
     private List<ExpenseSplit> calculateSplits(Long expenseId, BigDecimal totalAmount,
                                                int splitType, List<Long> splitUserIds,
@@ -289,14 +277,12 @@ public class ExpenseService {
 
         switch (splitType) {
             case ActivityExpense.SPLIT_EQUAL -> {
-                // 均摊：总金额 / 人数，最后一人承担尾差
                 int count = splitUserIds.size();
                 BigDecimal perPerson = totalAmount.divide(BigDecimal.valueOf(count), 2, RoundingMode.DOWN);
                 BigDecimal remainder = totalAmount.subtract(perPerson.multiply(BigDecimal.valueOf(count)));
 
                 for (int i = 0; i < splitUserIds.size(); i++) {
                     BigDecimal amount = perPerson;
-                    // 最后一人承担尾差
                     if (i == splitUserIds.size() - 1) {
                         amount = amount.add(remainder);
                     }
@@ -308,7 +294,6 @@ public class ExpenseService {
                 }
             }
             case ActivityExpense.SPLIT_CUSTOM -> {
-                // 指定金额模式
                 if (customAmounts == null || customAmounts.isEmpty()) {
                     return List.of();
                 }
@@ -324,7 +309,6 @@ public class ExpenseService {
                 }
             }
             default -> {
-                // 默认均摊
                 int count = splitUserIds.size();
                 BigDecimal perPerson = totalAmount.divide(BigDecimal.valueOf(count), 2, RoundingMode.DOWN);
                 BigDecimal remainder = totalAmount.subtract(perPerson.multiply(BigDecimal.valueOf(count)));
@@ -348,14 +332,12 @@ public class ExpenseService {
 
     /**
      * 使用贪心算法计算简化后的债务关系
-     * 将复杂的多人债务简化为最少的转账次数
      */
     private List<SettlementVO.DebtItem> calculateDebts(Map<Long, BigDecimal> balanceMap,
                                                         Map<Long, String> nicknameMap,
                                                         Map<Long, String> avatarMap) {
         List<SettlementVO.DebtItem> debts = new ArrayList<>();
 
-        // 分离债权人（正余额）和欠款人（负余额）
         List<Map.Entry<Long, BigDecimal>> creditors = new ArrayList<>();
         List<Map.Entry<Long, BigDecimal>> debtors = new ArrayList<>();
 
@@ -367,7 +349,6 @@ public class ExpenseService {
             }
         }
 
-        // 贪心匹配：每次让欠款最多的人还给被欠最多的人
         int i = 0, j = 0;
         while (i < debtors.size() && j < creditors.size()) {
             Long debtorId = debtors.get(i).getKey();
@@ -388,7 +369,6 @@ public class ExpenseService {
                     .settled(false)
                     .build());
 
-            // 更新余额
             debtors.get(i).setValue(debtAmount.subtract(transferAmount));
             creditors.get(j).setValue(creditAmount.subtract(transferAmount));
 

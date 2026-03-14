@@ -1,44 +1,17 @@
 package com.limengyuan.partner.post.mapper;
 
+import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.limengyuan.partner.common.entity.Category;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.core.RowMapper;
-import org.springframework.stereotype.Repository;
-
-import java.util.List;
+import org.apache.ibatis.annotations.Mapper;
 
 /**
- * 分类数据访问层
+ * 分类数据访问层 - MyBatis-Plus
+ *
+ * 内置方法：
+ * - selectList(null)     → 查询所有分类
+ * - selectList(wrapper)  → 条件查询（如只查启用的）
  */
-@Repository
-public class CategoryMapper {
-
-    private final JdbcTemplate jdbcTemplate;
-
-    private static final RowMapper<Category> ROW_MAPPER = (rs, rowNum) -> Category.builder()
-            .categoryId(rs.getInt("category_id"))
-            .name(rs.getString("name"))
-            .sortOrder(rs.getInt("sort_order"))
-            .isActive(rs.getBoolean("is_active"))
-            .build();
-
-    public CategoryMapper(JdbcTemplate jdbcTemplate) {
-        this.jdbcTemplate = jdbcTemplate;
-    }
-
-    /**
-     * 查询所有启用的分类，按排序权重排序
-     */
-    public List<Category> findAllActive() {
-        String sql = "SELECT category_id, name, sort_order, is_active FROM categories WHERE is_active = 1 ORDER BY sort_order ASC";
-        return jdbcTemplate.query(sql, ROW_MAPPER);
-    }
-
-    /**
-     * 查询所有分类
-     */
-    public List<Category> findAll() {
-        String sql = "SELECT category_id, name, sort_order, is_active FROM categories ORDER BY sort_order ASC";
-        return jdbcTemplate.query(sql, ROW_MAPPER);
-    }
+@Mapper
+public interface CategoryMapper extends BaseMapper<Category> {
+    // 所有方法都可以用 BaseMapper + QueryWrapper 实现，无需自定义 SQL
 }

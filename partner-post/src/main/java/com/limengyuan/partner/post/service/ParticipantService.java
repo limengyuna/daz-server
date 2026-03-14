@@ -1,5 +1,6 @@
 package com.limengyuan.partner.post.service;
 
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.limengyuan.partner.common.dto.vo.ActivityVO;
 import com.limengyuan.partner.common.dto.vo.ActivityWithApplicationsVO;
 import com.limengyuan.partner.common.dto.request.JoinActivityRequest;
@@ -18,7 +19,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 
 /**
  * 活动参与服务层 - 处理报名、审核、退出等业务逻辑
@@ -35,22 +35,15 @@ public class ParticipantService {
 
     /**
      * 申请加入活动
-     *
-     * @param activityId 活动ID
-     * @param userId     用户ID
-     * @param request    申请请求
-     * @return 操作结果
      */
     public Result<Participant> joinActivity(Long activityId, Long userId, JoinActivityRequest request) {
         // 1. 检查活动是否存在
-        Optional<Activity> activityOpt = activityMapper.findById(activityId);
-        if (activityOpt.isEmpty()) {
+        Activity activity = activityMapper.selectById(activityId);
+        if (activity == null) {
             return Result.error("活动不存在");
         }
 
-        Activity activity = activityOpt.get();
-
-        // 2. 检查是否是活动发起人（发起人不能申请自己的活动）
+        // 2. 检查是否是活动发起人
         if (activity.getInitiatorId().equals(userId)) {
             return Result.error("您是活动发起人，无需申请");
         }
@@ -61,9 +54,8 @@ public class ParticipantService {
         }
 
         // 4. 检查是否重复申请
-        Optional<Participant> existingOpt = participantMapper.findByActivityIdAndUserId(activityId, userId);
-        if (existingOpt.isPresent()) {
-            Participant existing = existingOpt.get();
+        Participant existing = findByActivityIdAndUserId(activityId, userId);
+        if (existing != null) {
             if (existing.getStatus() == Participant.STATUS_PENDING) {
                 return Result.error("您已申请过，请等待审核");
             } else if (existing.getStatus() == Participant.STATUS_APPROVED) {
@@ -77,13 +69,12 @@ public class ParticipantService {
         }
 
         // 5. 检查是否已满员
-        int currentCount = participantMapper.countApprovedByActivityId(activityId);
-        // 注意: maxParticipants 包含发起人，所以可加入的人数是 maxParticipants - 1
+        int currentCount = countApprovedByActivityId(activityId);
         if (currentCount >= activity.getMaxParticipants() - 1) {
             return Result.error("活动已满员");
         }
 
-        // 6. 创建参与记录
+        // 6. 创建参与记录（MP 自动回填 participantId）
         Participant participant = Participant.builder()
                 .activityId(activityId)
                 .userId(userId)
@@ -91,25 +82,20 @@ public class ParticipantService {
                 .applyMsg(request != null ? request.getApplyMsg() : null)
                 .build();
 
-        Long participantId = participantMapper.insert(participant);
-        if (participantId == null) {
+        int rows = participantMapper.insert(participant);
+        if (rows == 0) {
             return Result.error("申请失败，请稍后重试");
         }
 
-        participant.setParticipantId(participantId);
         return Result.success("申请成功，请等待发起人审核", participant);
     }
 
     /**
      * 获取活动的所有参与者列表
-     *
-     * @param activityId 活动ID
-     * @return 参与者列表
      */
     public Result<List<ParticipantVO>> getParticipants(Long activityId) {
-        // 检查活动是否存在
-        Optional<Activity> activityOpt = activityMapper.findById(activityId);
-        if (activityOpt.isEmpty()) {
+        Activity activity = activityMapper.selectById(activityId);
+        if (activity == null) {
             return Result.error("活动不存在");
         }
 
@@ -119,9 +105,6 @@ public class ParticipantService {
 
     /**
      * 获取活动的已通过参与者列表
-     *
-     * @param activityId 活动ID
-     * @return 已通过的参与者列表
      */
     public Result<List<ParticipantVO>> getApprovedParticipants(Long activityId) {
         List<ParticipantVO> participants = participantMapper.findApprovedByActivityIdWithUser(activityId);
@@ -130,27 +113,19 @@ public class ParticipantService {
 
     /**
      * 审核通过
-     *
-     * @param participantId 参与记录ID
-     * @param operatorId    操作者ID（需要是活动发起人）
-     * @return 操作结果
      */
     public Result<Void> approveParticipant(Long participantId, Long operatorId) {
         // 1. 查询参与记录
-        Optional<Participant> participantOpt = participantMapper.findById(participantId);
-        if (participantOpt.isEmpty()) {
+        Participant participant = participantMapper.selectById(participantId);
+        if (participant == null) {
             return Result.error("申请记录不存在");
         }
 
-        Participant participant = participantOpt.get();
-
         // 2. 查询活动
-        Optional<Activity> activityOpt = activityMapper.findById(participant.getActivityId());
-        if (activityOpt.isEmpty()) {
+        Activity activity = activityMapper.selectById(participant.getActivityId());
+        if (activity == null) {
             return Result.error("活动不存在");
         }
-
-        Activity activity = activityOpt.get();
 
         // 3. 验证操作者是否是活动发起人
         if (!activity.getInitiatorId().equals(operatorId)) {
@@ -163,7 +138,7 @@ public class ParticipantService {
         }
 
         // 5. 检查是否已满员
-        int currentCount = participantMapper.countApprovedByActivityId(participant.getActivityId());
+        int currentCount = countApprovedByActivityId(participant.getActivityId());
         if (currentCount >= activity.getMaxParticipants() - 1) {
             return Result.error("活动已满员，无法通过更多申请");
         }
@@ -179,39 +154,26 @@ public class ParticipantService {
 
     /**
      * 审核拒绝
-     *
-     * @param participantId 参与记录ID
-     * @param operatorId    操作者ID（需要是活动发起人）
-     * @return 操作结果
      */
     public Result<Void> rejectParticipant(Long participantId, Long operatorId) {
-        // 1. 查询参与记录
-        Optional<Participant> participantOpt = participantMapper.findById(participantId);
-        if (participantOpt.isEmpty()) {
+        Participant participant = participantMapper.selectById(participantId);
+        if (participant == null) {
             return Result.error("申请记录不存在");
         }
 
-        Participant participant = participantOpt.get();
-
-        // 2. 查询活动
-        Optional<Activity> activityOpt = activityMapper.findById(participant.getActivityId());
-        if (activityOpt.isEmpty()) {
+        Activity activity = activityMapper.selectById(participant.getActivityId());
+        if (activity == null) {
             return Result.error("活动不存在");
         }
 
-        Activity activity = activityOpt.get();
-
-        // 3. 验证操作者是否是活动发起人
         if (!activity.getInitiatorId().equals(operatorId)) {
             return Result.error("您没有审核权限");
         }
 
-        // 4. 检查申请状态
         if (participant.getStatus() != Participant.STATUS_PENDING) {
             return Result.error("该申请已处理");
         }
 
-        // 5. 更新状态
         boolean success = participantMapper.updateStatus(participantId, Participant.STATUS_REJECTED);
         if (!success) {
             return Result.error("操作失败");
@@ -222,26 +184,17 @@ public class ParticipantService {
 
     /**
      * 退出活动
-     *
-     * @param activityId 活动ID
-     * @param userId     用户ID
-     * @return 操作结果
      */
     public Result<Void> leaveActivity(Long activityId, Long userId) {
-        // 1. 查询参与记录
-        Optional<Participant> participantOpt = participantMapper.findByActivityIdAndUserId(activityId, userId);
-        if (participantOpt.isEmpty()) {
+        Participant participant = findByActivityIdAndUserId(activityId, userId);
+        if (participant == null) {
             return Result.error("您未参与该活动");
         }
 
-        Participant participant = participantOpt.get();
-
-        // 2. 检查状态
         if (participant.getStatus() == Participant.STATUS_LEFT) {
             return Result.error("您已退出该活动");
         }
 
-        // 3. 更新状态为主动退出
         boolean success = participantMapper.updateStatus(participant.getParticipantId(), Participant.STATUS_LEFT);
         if (!success) {
             return Result.error("操作失败");
@@ -252,47 +205,32 @@ public class ParticipantService {
 
     /**
      * 统一审核接口
-     *
-     * @param participantId 参与记录ID
-     * @param operatorId    操作者ID（需要是活动发起人）
-     * @param request       审核请求（包含 action: approve/reject）
-     * @return 操作结果
      */
     public Result<Void> reviewParticipant(Long participantId, Long operatorId, ReviewRequest request) {
         if (request == null || (!request.isApprove() && !request.isReject())) {
             return Result.error("请指定审核动作: approve 或 reject");
         }
 
-        // 1. 查询参与记录
-        Optional<Participant> participantOpt = participantMapper.findById(participantId);
-        if (participantOpt.isEmpty()) {
+        Participant participant = participantMapper.selectById(participantId);
+        if (participant == null) {
             return Result.error("申请记录不存在");
         }
 
-        Participant participant = participantOpt.get();
-
-        // 2. 查询活动
-        Optional<Activity> activityOpt = activityMapper.findById(participant.getActivityId());
-        if (activityOpt.isEmpty()) {
+        Activity activity = activityMapper.selectById(participant.getActivityId());
+        if (activity == null) {
             return Result.error("活动不存在");
         }
 
-        Activity activity = activityOpt.get();
-
-        // 3. 验证操作者是否是活动发起人
         if (!activity.getInitiatorId().equals(operatorId)) {
             return Result.error("您没有审核权限");
         }
 
-        // 4. 检查申请状态
         if (participant.getStatus() != Participant.STATUS_PENDING) {
             return Result.error("该申请已处理");
         }
 
-        // 5. 根据 action 执行不同操作
         if (request.isApprove()) {
-            // 检查是否已满员
-            int currentCount = participantMapper.countApprovedByActivityId(participant.getActivityId());
+            int currentCount = countApprovedByActivityId(participant.getActivityId());
             if (currentCount >= activity.getMaxParticipants() - 1) {
                 return Result.error("活动已满员，无法通过更多申请");
             }
@@ -306,27 +244,17 @@ public class ParticipantService {
 
     /**
      * 修改申请留言
-     *
-     * @param participantId 参与记录ID
-     * @param userId        当前用户ID（只能修改自己的留言）
-     * @param applyMsg      新的留言内容
-     * @return 操作结果
      */
     public Result<Void> updateApplyMsg(Long participantId, Long userId, String applyMsg) {
-        // 1. 查询参与记录
-        Optional<Participant> participantOpt = participantMapper.findById(participantId);
-        if (participantOpt.isEmpty()) {
+        Participant participant = participantMapper.selectById(participantId);
+        if (participant == null) {
             return Result.error("申请记录不存在");
         }
 
-        Participant participant = participantOpt.get();
-
-        // 2. 只能修改自己的留言
         if (!participant.getUserId().equals(userId)) {
             return Result.error("无权修改他人的申请留言");
         }
 
-        // 3. 仅 pending 状态下允许修改
         if (participant.getStatus() != Participant.STATUS_PENDING) {
             return Result.error("申请已处理，无法修改留言");
         }
@@ -341,9 +269,6 @@ public class ParticipantService {
 
     /**
      * 获取用户的所有申请记录
-     *
-     * @param userId 用户ID
-     * @return 申请记录列表（包含活动详情）
      */
     public Result<List<MyApplicationVO>> getMyApplications(Long userId) {
         List<MyApplicationVO> applications = participantMapper.findByUserIdWithActivity(userId);
@@ -352,25 +277,16 @@ public class ParticipantService {
 
     /**
      * 获取用户发布的活动及其申请列表
-     * 每个活动默认返回前7条申请记录
-     *
-     * @param userId 用户ID
-     * @return 活动及申请列表
      */
     public Result<List<ActivityWithApplicationsVO>> getMyActivitiesWithApplications(Long userId) {
-        // 1. 获取用户发布的所有活动
         List<ActivityVO> activities = activityMapper.findByInitiatorIdWithUser(userId);
 
-        // 2. 为每个活动获取申请列表和申请总数
         List<ActivityWithApplicationsVO> result = new ArrayList<>();
         for (ActivityVO activity : activities) {
-            // 获取前7条申请记录
             List<ParticipantVO> applications = participantMapper.findByActivityIdWithUserPaged(
                     activity.getActivityId(), 0, 7);
-            // 获取申请总数
-            int totalApplications = participantMapper.countByActivityId(activity.getActivityId());
+            int totalApplications = countByActivityId(activity.getActivityId());
 
-            // 构建聚合对象
             ActivityWithApplicationsVO vo = ActivityWithApplicationsVO.builder()
                     .activityId(activity.getActivityId())
                     .initiatorId(activity.getInitiatorId())
@@ -404,22 +320,16 @@ public class ParticipantService {
 
     /**
      * 分页获取活动的参与者列表
-     *
-     * @param activityId 活动ID
-     * @param page       页码（从0开始）
-     * @param size       每页数量
-     * @return 分页结果
      */
     public Result<ParticipantPageVO> getParticipantsPaged(Long activityId, int page, int size) {
-        // 检查活动是否存在
-        Optional<Activity> activityOpt = activityMapper.findById(activityId);
-        if (activityOpt.isEmpty()) {
+        Activity activity = activityMapper.selectById(activityId);
+        if (activity == null) {
             return Result.error("活动不存在");
         }
 
         int offset = page * size;
         List<ParticipantVO> participants = participantMapper.findByActivityIdWithUserPaged(activityId, offset, size);
-        int total = participantMapper.countByActivityId(activityId);
+        int total = countByActivityId(activityId);
 
         ParticipantPageVO pageVO = ParticipantPageVO.builder()
                 .list(participants)
@@ -429,5 +339,36 @@ public class ParticipantService {
                 .build();
 
         return Result.success(pageVO);
+    }
+
+    // ============================
+    // 内部辅助方法（使用 QueryWrapper）
+    // ============================
+
+    /**
+     * 根据活动ID和用户ID查询参与记录
+     */
+    private Participant findByActivityIdAndUserId(Long activityId, Long userId) {
+        QueryWrapper<Participant> wrapper = new QueryWrapper<>();
+        wrapper.eq("activity_id", activityId).eq("user_id", userId);
+        return participantMapper.selectOne(wrapper);
+    }
+
+    /**
+     * 统计某活动已通过的参与人数
+     */
+    private int countApprovedByActivityId(Long activityId) {
+        QueryWrapper<Participant> wrapper = new QueryWrapper<>();
+        wrapper.eq("activity_id", activityId).eq("status", 1);
+        return Math.toIntExact(participantMapper.selectCount(wrapper));
+    }
+
+    /**
+     * 统计某活动的所有参与记录数
+     */
+    private int countByActivityId(Long activityId) {
+        QueryWrapper<Participant> wrapper = new QueryWrapper<>();
+        wrapper.eq("activity_id", activityId);
+        return Math.toIntExact(participantMapper.selectCount(wrapper));
     }
 }

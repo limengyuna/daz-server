@@ -1,5 +1,9 @@
 package com.limengyuan.partner.common.entity;
 
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -15,11 +19,13 @@ import java.time.LocalDateTime;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@TableName("users")
 public class User {
 
     /**
      * 用户ID
      */
+    @TableId(value = "user_id", type = IdType.AUTO)
     private Long userId;
 
     /**
@@ -90,10 +96,12 @@ public class User {
     /**
      * 关注数量（非数据库字段，用于返回给前端）
      */
+    @TableField(exist = false)
     private Integer followingCount;
 
     /**
      * 粉丝数量（非数据库字段，用于返回给前端）
      */
+    @TableField(exist = false)
     private Integer followersCount;
 }

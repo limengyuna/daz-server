@@ -1,7 +1,9 @@
 package com.limengyuan.partner.user.service;
 
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.limengyuan.partner.common.dto.PageResult;
 import com.limengyuan.partner.common.entity.User;
+import com.limengyuan.partner.common.entity.UserFollow;
 import com.limengyuan.partner.common.result.Result;
 import com.limengyuan.partner.user.mapper.UserFollowMapper;
 import com.limengyuan.partner.user.mapper.UserMapper;
@@ -37,21 +39,30 @@ public class UserFollowService {
         }
 
         // 检查被关注用户是否存在
-        if (userMapper.findById(followeeId).isEmpty()) {
+        if (userMapper.selectById(followeeId) == null) {
             return Result.error("用户不存在");
         }
 
         // 检查是否已关注
-        if (userFollowMapper.isFollowing(followerId, followeeId)) {
+        if (isFollowing(followerId, followeeId)) {
             return Result.error("已经关注过该用户");
         }
 
         // 执行关注
-        int rows = userFollowMapper.follow(followerId, followeeId);
-        if (rows > 0) {
-            return Result.success("关注成功", null);
-        } else {
-            return Result.error("关注失败");
+        UserFollow follow = UserFollow.builder()
+                .followerId(followerId)
+                .followeeId(followeeId)
+                .build();
+        try {
+            int rows = userFollowMapper.insert(follow);
+            if (rows > 0) {
+                return Result.success("关注成功", null);
+            } else {
+                return Result.error("关注失败");
+            }
+        } catch (Exception e) {
+            // 可能是重复关注，唯一索引冲突
+            return Result.error("已经关注过该用户");
         }
     }
 
@@ -60,12 +71,14 @@ public class UserFollowService {
      */
     public Result<Void> unfollowUser(Long followerId, Long followeeId) {
         // 检查是否已关注
-        if (!userFollowMapper.isFollowing(followerId, followeeId)) {
+        if (!isFollowing(followerId, followeeId)) {
             return Result.error("未关注该用户");
         }
 
         // 执行取消关注
-        int rows = userFollowMapper.unfollow(followerId, followeeId);
+        QueryWrapper<UserFollow> wrapper = new QueryWrapper<>();
+        wrapper.eq("follower_id", followerId).eq("followee_id", followeeId);
+        int rows = userFollowMapper.delete(wrapper);
         if (rows > 0) {
             return Result.success("取消关注成功", null);
         } else {
@@ -77,8 +90,8 @@ public class UserFollowService {
      * 检查是否关注
      */
     public Result<Boolean> checkFollowing(Long followerId, Long followeeId) {
-        boolean isFollowing = userFollowMapper.isFollowing(followerId, followeeId);
-        return Result.success(isFollowing);
+        boolean following = isFollowing(followerId, followeeId);
+        return Result.success(following);
     }
 
     /**
@@ -94,7 +107,7 @@ public class UserFollowService {
         followingList.forEach(user -> user.setPasswordHash(null));
         
         // 获取总数
-        int total = userFollowMapper.getFollowingCount(userId);
+        int total = getFollowingCount(userId);
         
         // 构建分页结果
         PageResult<User> pageResult = PageResult.of(followingList, total, page, size);
@@ -114,7 +127,7 @@ public class UserFollowService {
         followersList.forEach(user -> user.setPasswordHash(null));
         
         // 获取总数
-        int total = userFollowMapper.getFollowersCount(userId);
+        int total = getFollowersCount(userId);
         
         // 构建分页结果
         PageResult<User> pageResult = PageResult.of(followersList, total, page, size);
@@ -126,8 +139,39 @@ public class UserFollowService {
      */
     public Result<Map<String, Integer>> getFollowStats(Long userId) {
         Map<String, Integer> stats = new HashMap<>();
-        stats.put("followingCount", userFollowMapper.getFollowingCount(userId));
-        stats.put("followersCount", userFollowMapper.getFollowersCount(userId));
+        stats.put("followingCount", getFollowingCount(userId));
+        stats.put("followersCount", getFollowersCount(userId));
         return Result.success(stats);
+    }
+
+    // ============================
+    // 内部辅助方法（使用 QueryWrapper）
+    // ============================
+
+    /**
+     * 检查是否已关注
+     */
+    private boolean isFollowing(Long followerId, Long followeeId) {
+        QueryWrapper<UserFollow> wrapper = new QueryWrapper<>();
+        wrapper.eq("follower_id", followerId).eq("followee_id", followeeId);
+        return userFollowMapper.selectCount(wrapper) > 0;
+    }
+
+    /**
+     * 获取关注数量
+     */
+    private int getFollowingCount(Long userId) {
+        QueryWrapper<UserFollow> wrapper = new QueryWrapper<>();
+        wrapper.eq("follower_id", userId);
+        return Math.toIntExact(userFollowMapper.selectCount(wrapper));
+    }
+
+    /**
+     * 获取粉丝数量
+     */
+    private int getFollowersCount(Long userId) {
+        QueryWrapper<UserFollow> wrapper = new QueryWrapper<>();
+        wrapper.eq("followee_id", userId);
+        return Math.toIntExact(userFollowMapper.selectCount(wrapper));
     }
 }

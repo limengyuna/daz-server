@@ -1,102 +1,38 @@
 package com.limengyuan.partner.user.mapper;
 
+import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.limengyuan.partner.common.entity.User;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.core.RowMapper;
-import org.springframework.stereotype.Repository;
-
-import java.sql.Date;
-import java.util.List;
-import java.util.Optional;
+import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
+import org.apache.ibatis.annotations.Select;
+import org.apache.ibatis.annotations.Update;
 
 /**
- * 用户数据访问层
+ * 用户数据访问层 - MyBatis-Plus
+ *
+ * 内置方法（继承自 BaseMapper）：
+ * - selectById(id)       → 根据ID查询
+ * - insert(entity)       → 插入
+ * - updateById(entity)   → 根据ID更新
+ * - deleteById(id)       → 根据ID删除
+ * - selectList(wrapper)  → 条件查询列表
  */
-@Repository
-public class UserMapper {
-
-    private final JdbcTemplate jdbcTemplate;
-
-    private static final RowMapper<User> ROW_MAPPER = (rs, rowNum) -> User.builder()
-            .userId(rs.getLong("user_id"))
-            .username(rs.getString("username"))
-            .passwordHash(rs.getString("password_hash"))
-            .nickname(rs.getString("nickname"))
-            .avatarUrl(rs.getString("avatar_url"))
-            .gender(rs.getInt("gender"))
-            .birthday(rs.getDate("birthday") != null ? rs.getDate("birthday").toLocalDate() : null)
-            .city(rs.getString("city"))
-            .bio(rs.getString("bio"))
-            .tags(rs.getString("tags"))
-            .creditScore(rs.getInt("credit_score"))
-            .status(rs.getInt("status"))
-            .createdAt(rs.getTimestamp("created_at") != null ? rs.getTimestamp("created_at").toLocalDateTime() : null)
-            .updatedAt(rs.getTimestamp("updated_at") != null ? rs.getTimestamp("updated_at").toLocalDateTime() : null)
-            .build();
-
-    public UserMapper(JdbcTemplate jdbcTemplate) {
-        this.jdbcTemplate = jdbcTemplate;
-    }
-
-    /**
-     * 根据ID查询用户
-     */
-    public Optional<User> findById(Long userId) {
-        String sql = "SELECT * FROM users WHERE user_id = ?";
-        try {
-            User user = jdbcTemplate.queryForObject(sql, ROW_MAPPER, userId);
-            return Optional.ofNullable(user);
-        } catch (Exception e) {
-            return Optional.empty();
-        }
-    }
+@Mapper
+public interface UserMapper extends BaseMapper<User> {
 
     /**
      * 根据用户名查询用户
      */
-    public Optional<User> findByUsername(String username) {
-        String sql = "SELECT * FROM users WHERE username = ?";
-        try {
-            User user = jdbcTemplate.queryForObject(sql, ROW_MAPPER, username);
-            return Optional.ofNullable(user);
-        } catch (Exception e) {
-            return Optional.empty();
-        }
-    }
+    @Select("SELECT * FROM users WHERE username = #{username}")
+    User findByUsername(@Param("username") String username);
 
     /**
-     * 查询所有用户
+     * 更新用户信息（不包含密码，只更新指定字段）
      */
-    public List<User> findAll() {
-        String sql = "SELECT * FROM users ORDER BY created_at DESC";
-        return jdbcTemplate.query(sql, ROW_MAPPER);
-    }
-
-    /**
-     * 更新用户信息（不包含密码）
-     */
-    public int update(User user) {
-        String sql = """
-                UPDATE users SET nickname = ?, avatar_url = ?, gender = ?, birthday = ?,
-                    city = ?, bio = ?, tags = ?
-                WHERE user_id = ?
-                """;
-        return jdbcTemplate.update(sql,
-                user.getNickname(),
-                user.getAvatarUrl(),
-                user.getGender(),
-                user.getBirthday() != null ? Date.valueOf(user.getBirthday()) : null,
-                user.getCity(),
-                user.getBio(),
-                user.getTags(),
-                user.getUserId());
-    }
-
-    /**
-     * 删除用户
-     */
-    public int deleteById(Long userId) {
-        String sql = "DELETE FROM users WHERE user_id = ?";
-        return jdbcTemplate.update(sql, userId);
-    }
+    @Update("""
+            UPDATE users SET nickname = #{nickname}, avatar_url = #{avatarUrl}, gender = #{gender},
+                birthday = #{birthday}, city = #{city}, bio = #{bio}, tags = #{tags}
+            WHERE user_id = #{userId}
+            """)
+    int updateUserInfo(User user);
 }
