@@ -3,11 +3,13 @@ package com.limengyuan.partner.post.controller;
 import com.alibaba.csp.sentinel.annotation.SentinelResource;
 import com.alibaba.csp.sentinel.slots.block.BlockException;
 import com.limengyuan.partner.common.dto.vo.ActivityVO;
+import com.limengyuan.partner.common.dto.vo.RecommendedActivityVO;
 import com.limengyuan.partner.common.dto.request.CreateActivityRequest;
 import com.limengyuan.partner.common.dto.PageResult;
 import com.limengyuan.partner.common.entity.Activity;
 import com.limengyuan.partner.common.result.Result;
 import com.limengyuan.partner.common.util.JwtUtils;
+import com.limengyuan.partner.post.service.ActivityRecommendService;
 import com.limengyuan.partner.post.service.ActivityService;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
@@ -24,9 +26,12 @@ import java.util.List;
 public class ActivityController {
 
     private final ActivityService activityService;
+    private final ActivityRecommendService recommendService;
 
-    public ActivityController(ActivityService activityService) {
+    public ActivityController(ActivityService activityService,
+                              ActivityRecommendService recommendService) {
         this.activityService = activityService;
+        this.recommendService = recommendService;
     }
 
     /**
@@ -46,6 +51,29 @@ public class ActivityController {
     @SentinelResource(value = "getActivity", blockHandler = "getActivityBlockHandler")
     public Result<ActivityVO> getActivity(@PathVariable("id") Long activityId) {
         return activityService.getActivity(activityId);
+    }
+
+    /**
+     * AI 个性化推荐活动
+     * GET /api/activities/recommend
+     *
+     * 根据用户画像（标签、城市）调用 DeepSeek AI 生成推荐列表
+     * 请求头需携带: Authorization: Bearer {token}
+     */
+    @GetMapping("/recommend")
+    public Result<List<RecommendedActivityVO>> recommendActivities(
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            return Result.error("未登录或 Token 无效");
+        }
+
+        Long userId = JwtUtils.getUserIdFromToken(authHeader);
+        if (userId == null) {
+            return Result.error("Token 无效或已过期");
+        }
+
+        return recommendService.getRecommendations(userId);
     }
 
     /**

@@ -101,4 +101,29 @@ public interface ActivityMapper extends BaseMapper<Activity> {
      */
     @Select("SELECT COUNT(*) FROM activities WHERE JSON_CONTAINS(category_ids, JSON_ARRAY(#{categoryId}))")
     long countAllByCategory(@Param("categoryId") Integer categoryId);
+
+    /**
+     * 查询用户的标签和城市信息（用于 AI 推荐构建用户画像）
+     */
+    @Select("SELECT tags, city FROM users WHERE user_id = #{userId}")
+    java.util.Map<String, Object> findUserTagsAndCity(@Param("userId") Long userId);
+
+    /**
+     * 查询所有招募中的活动（status=0），按创建时间倒序，取最近 limit 条
+     * 作为 AI 推荐的候选集
+     */
+    @Select("""
+            SELECT a.*,
+                   u.nickname AS initiator_nickname,
+                   u.avatar_url AS initiator_avatar,
+                   u.credit_score AS initiator_credit_score,
+                   (SELECT COUNT(*) FROM participants p
+                    WHERE p.activity_id = a.activity_id AND p.status = 1) AS current_participants
+            FROM activities a
+            LEFT JOIN users u ON a.initiator_id = u.user_id
+            WHERE a.status = 0
+            ORDER BY a.created_at DESC
+            LIMIT #{limit}
+            """)
+    List<ActivityVO> findRecruitingActivities(@Param("limit") int limit);
 }
