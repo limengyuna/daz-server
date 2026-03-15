@@ -47,7 +47,7 @@ public class ActivityController {
      * 获取活动详情
      * GET /api/activities/{id}
      */
-    @GetMapping("/{id}")
+    @GetMapping("/{id:\\d+}")
     @SentinelResource(value = "getActivity", blockHandler = "getActivityBlockHandler")
     public Result<ActivityVO> getActivity(@PathVariable("id") Long activityId) {
         return activityService.getActivity(activityId);
