@@ -9,8 +9,10 @@ import com.limengyuan.partner.common.result.Result;
 import com.limengyuan.partner.post.mapper.ActivityMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
+import java.time.Duration;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -23,17 +25,24 @@ public class ActivityRecommendService {
 
     /** 候选活动最大数量 */
     private static final int CANDIDATE_LIMIT = 20;
+    /** 缓存 key 前缀 */
+    private static final String CACHE_KEY_PREFIX = "recommend:user:";
+    /** 缓存过期时间：30 分钟 */
+    private static final Duration CACHE_TTL = Duration.ofMinutes(30);
 
     private final ChatClient chatClient;
     private final ActivityMapper activityMapper;
     private final ObjectMapper objectMapper;
+    private final StringRedisTemplate redisTemplate;
 
     public ActivityRecommendService(ChatClient.Builder chatClientBuilder,
                                      ActivityMapper activityMapper,
-                                     ObjectMapper objectMapper) {
+                                     ObjectMapper objectMapper,
+                                     StringRedisTemplate redisTemplate) {
         this.chatClient = chatClientBuilder.build();
         this.activityMapper = activityMapper;
         this.objectMapper = objectMapper;
+        this.redisTemplate = redisTemplate;
     }
 
     /**
@@ -43,7 +52,21 @@ public class ActivityRecommendService {
      * @return 推荐活动列表（包含推荐理由）
      */
     public Result<List<RecommendedActivityVO>> getRecommendations(Long userId) {
-        // 1. 获取用户画像信息
+        // 1. 先查 Redis 缓存
+        String cacheKey = CACHE_KEY_PREFIX + userId;
+        try {
+            String cached = redisTemplate.opsForValue().get(cacheKey);
+            if (cached != null) {
+                log.info("[AI推荐] 命中缓存, userId={}", userId);
+                List<RecommendedActivityVO> cachedResult = objectMapper.readValue(
+                        cached, new TypeReference<List<RecommendedActivityVO>>() {});
+                return Result.success(cachedResult);
+            }
+        } catch (Exception e) {
+            log.warn("[AI推荐] 读取缓存失败, 将重新调用AI, userId={}", userId, e);
+        }
+
+        // 2. 获取用户画像信息
         Map<String, Object> userProfile = activityMapper.findUserTagsAndCity(userId);
         if (userProfile == null) {
             return Result.error("用户不存在");
@@ -52,19 +75,19 @@ public class ActivityRecommendService {
         String userTags = (String) userProfile.get("tags");
         String userCity = (String) userProfile.get("city");
 
-        // 2. 获取所有招募中的活动作为候选集
+        // 3. 获取所有招募中的活动作为候选集
         List<ActivityVO> candidates = activityMapper.findRecruitingActivities(CANDIDATE_LIMIT);
         if (candidates == null || candidates.isEmpty()) {
             return Result.success("暂无可推荐的活动", Collections.emptyList());
         }
 
-        // 3. 构建候选活动摘要（给 AI 看的简化信息）
+        // 4. 构建候选活动摘要（给 AI 看的简化信息）
         String activitiesSummary = buildActivitiesSummary(candidates);
 
-        // 4. 构造 Prompt
+        // 5. 构造 Prompt
         String prompt = buildPrompt(userTags, userCity, activitiesSummary);
 
-        // 5. 调用 DeepSeek AI
+        // 6. 调用 DeepSeek AI
         String aiResponse;
         try {
             aiResponse = chatClient.prompt()
@@ -77,8 +100,18 @@ public class ActivityRecommendService {
             return Result.error("AI 推荐服务暂时不可用，请稍后再试");
         }
 
-        // 6. 解析 AI 返回结果，组装推荐列表
+        // 7. 解析 AI 返回结果，组装推荐列表
         List<RecommendedActivityVO> result = parseAIResponse(aiResponse, candidates);
+
+        // 8. 将结果写入 Redis 缓存（30 分钟过期）
+        try {
+            String json = objectMapper.writeValueAsString(result);
+            redisTemplate.opsForValue().set(cacheKey, json, CACHE_TTL);
+            log.info("[AI推荐] 缓存已写入, userId={}, TTL=30min", userId);
+        } catch (Exception e) {
+            log.warn("[AI推荐] 写入缓存失败, userId={}", userId, e);
+        }
+
         return Result.success(result);
     }
 
