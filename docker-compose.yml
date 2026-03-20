@@ -30,6 +30,8 @@ services:
         condition: service_healthy
       partner-file-service:
         condition: service_healthy
+      partner-admin:
+        condition: service_healthy
     networks:
       - partner-network
     restart: always
@@ -156,6 +158,35 @@ services:
     memswap_limit: 384m
     healthcheck:
       test: ["CMD-SHELL", "wget -q --spider http://localhost:8083/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ===========================
+  # partner-admin 管理员服务
+  # ===========================
+  partner-admin:
+    build:
+      context: ./partner-admin
+      dockerfile: Dockerfile
+    container_name: partner-admin
+    ports:
+      - "8084:8084"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - partner-network
+    restart: always
+    mem_limit: 384m
+    memswap_limit: 384m
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:8084/actuator/health || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3

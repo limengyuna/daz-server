@@ -24,6 +24,7 @@
         <module>partner-post</module>
         <module>partner-gateway</module>
         <module>partner-file-service</module>
+        <module>partner-admin</module>
     </modules>
 
     <!-- 统一版本管理 -->
