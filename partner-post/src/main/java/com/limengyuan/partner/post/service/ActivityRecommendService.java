@@ -1,6 +1,5 @@
 package com.limengyuan.partner.post.service;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.limengyuan.partner.common.dto.vo.ActivityVO;
@@ -9,6 +8,7 @@ import com.limengyuan.partner.common.result.Result;
 import com.limengyuan.partner.post.mapper.ActivityMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
@@ -87,21 +87,47 @@ public class ActivityRecommendService {
         // 5. 构造 Prompt
         String prompt = buildPrompt(userTags, userCity, activitiesSummary);
 
-        // 6. 调用 DeepSeek AI
-        String aiResponse;
+        // 6. 调用 DeepSeek AI，使用 Structured Output 自动解析为 Java 对象
+        List<AiRecommendation> recommendations;
         try {
-            aiResponse = chatClient.prompt()
+            recommendations = chatClient.prompt()
                     .user(prompt)
                     .call()
-                    .content();
-            log.info("[AI推荐] 用户ID={}, AI返回结果: {}", userId, aiResponse);
+                    .entity(new ParameterizedTypeReference<List<AiRecommendation>>() {});
+            log.info("[AI推荐] 用户ID={}, AI返回推荐数量: {}", userId,
+                    recommendations != null ? recommendations.size() : 0);
         } catch (Exception e) {
             log.error("[AI推荐] 调用 DeepSeek API 失败, userId={}", userId, e);
             return Result.error("AI 推荐服务暂时不可用，请稍后再试");
         }
 
-        // 7. 解析 AI 返回结果，组装推荐列表
-        List<RecommendedActivityVO> result = parseAIResponse(aiResponse, candidates);
+        // 7. 将 AI 推荐结果与候选活动匹配，组装最终列表
+        Map<Long, ActivityVO> activityMap = candidates.stream()
+                .collect(Collectors.toMap(ActivityVO::getActivityId, a -> a));
+
+        List<RecommendedActivityVO> result = new ArrayList<>();
+        if (recommendations != null) {
+            for (AiRecommendation rec : recommendations) {
+                ActivityVO activity = activityMap.get(rec.activityId());
+                if (activity != null) {
+                    result.add(RecommendedActivityVO.builder()
+                            .activity(activity)
+                            .reason(rec.reason())
+                            .build());
+                }
+            }
+        }
+
+        // 如果 AI 返回为空，兜底返回前5个候选活动
+        if (result.isEmpty()) {
+            result = candidates.stream()
+                    .limit(5)
+                    .map(a -> RecommendedActivityVO.builder()
+                            .activity(a)
+                            .reason("为你推荐")
+                            .build())
+                    .collect(Collectors.toList());
+        }
 
         // 8. 将结果写入 Redis 缓存（30 分钟过期）
         try {
@@ -139,6 +165,8 @@ public class ActivityRecommendService {
      * 构造发送给 AI 的 Prompt
      */
     private String buildPrompt(String userTags, String userCity, String activitiesSummary) {
+        // Structured Output 会自动在 Prompt 中追加 JSON Schema 约束，
+        // 因此不需要手动写 JSON 格式说明
         return String.format("""
                 你是一个活动推荐助手。请根据用户的兴趣标签和所在城市，从候选活动中推荐最合适的活动。
                 
@@ -153,16 +181,7 @@ public class ActivityRecommendService {
                 1. 从候选活动中选出最适合该用户的 5~10 个活动
                 2. 按推荐优先级从高到低排列
                 3. 每个推荐附带简短的推荐理由（一句话即可）
-                4. 必须严格按照以下 JSON 格式返回，不要包含任何其他内容：
-                
-                ```json
-                [
-                  {"activityId": 活动ID, "reason": "推荐理由"},
-                  {"activityId": 活动ID, "reason": "推荐理由"}
-                ]
-                ```
-                
-                注意：只返回 JSON 数组，不要有任何多余的文字说明。
+                4. activityId 必须是候选活动列表中真实存在的 ID
                 """,
                 userTags != null ? userTags : "无",
                 userCity != null ? userCity : "未知",
@@ -171,71 +190,13 @@ public class ActivityRecommendService {
     }
 
     /**
-     * 解析 AI 返回的 JSON 结果，匹配候选活动组装最终列表
+     * AI 推荐结果的结构化输出类型
+     * Spring AI 会自动将 AI 的返回解析为此 record 的列表
+     *
+     * @param activityId 推荐的活动ID
+     * @param reason     推荐理由
      */
-    private List<RecommendedActivityVO> parseAIResponse(String aiResponse, List<ActivityVO> candidates) {
-        // 提取 JSON 内容（AI 可能会返回 markdown 代码块包裹的 JSON）
-        String jsonContent = extractJson(aiResponse);
-
-        try {
-            List<Map<String, Object>> recommendations = objectMapper.readValue(
-                    jsonContent, new TypeReference<List<Map<String, Object>>>() {});
-
-            // 将候选活动按 ID 建立索引
-            Map<Long, ActivityVO> activityMap = candidates.stream()
-                    .collect(Collectors.toMap(ActivityVO::getActivityId, a -> a));
-
-            List<RecommendedActivityVO> result = new ArrayList<>();
-            for (Map<String, Object> rec : recommendations) {
-                Long activityId = Long.valueOf(rec.get("activityId").toString());
-                String reason = (String) rec.get("reason");
-
-                ActivityVO activity = activityMap.get(activityId);
-                if (activity != null) {
-                    result.add(RecommendedActivityVO.builder()
-                            .activity(activity)
-                            .reason(reason)
-                            .build());
-                }
-            }
-            return result;
-        } catch (JsonProcessingException e) {
-            log.error("[AI推荐] 解析 AI 返回结果失败: {}", aiResponse, e);
-            // 解析失败时，返回原始候选列表（无推荐理由）
-            return candidates.stream()
-                    .limit(5)
-                    .map(a -> RecommendedActivityVO.builder()
-                            .activity(a)
-                            .reason("为你推荐")
-                            .build())
-                    .collect(Collectors.toList());
-        }
-    }
-
-    /**
-     * 从 AI 返回中提取 JSON 内容（处理 markdown 代码块包裹的情况）
-     */
-    private String extractJson(String response) {
-        if (response == null) return "[]";
-        String trimmed = response.trim();
-        // 处理 ```json ... ``` 格式
-        if (trimmed.contains("```json")) {
-            int start = trimmed.indexOf("```json") + 7;
-            int end = trimmed.indexOf("```", start);
-            if (end > start) {
-                return trimmed.substring(start, end).trim();
-            }
-        }
-        // 处理 ``` ... ``` 格式
-        if (trimmed.startsWith("```")) {
-            int start = trimmed.indexOf("\n") + 1;
-            int end = trimmed.lastIndexOf("```");
-            if (end > start) {
-                return trimmed.substring(start, end).trim();
-            }
-        }
-        return trimmed;
-    }
+    public record AiRecommendation(Long activityId, String reason) {}
 
     /**
      * 费用方式文本转换
