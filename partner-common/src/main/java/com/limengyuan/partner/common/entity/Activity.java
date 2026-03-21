@@ -96,6 +96,11 @@ public class Activity {
     private Integer paymentType;
 
     /**
+     * 人均预算（元）
+     */
+    private BigDecimal budget;
+
+    /**
      * 状态: 0-招募中, 1-已满员, 2-活动结束, 3-已取消
      */
     private Integer status;

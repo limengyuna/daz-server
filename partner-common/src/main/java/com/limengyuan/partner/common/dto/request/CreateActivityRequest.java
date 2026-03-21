@@ -8,6 +8,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -87,4 +88,9 @@ public class CreateActivityRequest {
      * 费用方式: 1-AA制, 2-发起人请客, 3-免费, 4-各付各的, 默认1
      */
     private Integer paymentType;
+
+    /**
+     * 人均预算（元），可选
+     */
+    private BigDecimal budget;
 }

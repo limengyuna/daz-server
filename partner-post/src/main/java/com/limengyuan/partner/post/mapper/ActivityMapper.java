@@ -3,6 +3,7 @@ package com.limengyuan.partner.post.mapper;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.limengyuan.partner.common.dto.vo.ActivityVO;
 import com.limengyuan.partner.common.entity.Activity;
+import com.limengyuan.partner.common.dto.vo.ChatMessageVO;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
@@ -135,4 +136,35 @@ public interface ActivityMapper extends BaseMapper<Activity> {
      */
     @Update("UPDATE activities SET status = #{status}, updated_at = NOW() WHERE activity_id = #{activityId}")
     boolean updateStatus(@Param("activityId") Long activityId, @Param("status") Integer status);
+
+    /**
+     * 查询活动群聊中的文本消息（用于 AI 旅行回忆生成）
+     * 只取文本消息（msg_type=1），按时间正序排列
+     */
+    @Select("""
+            SELECT m.message_id, m.sender_id, m.content, m.msg_type, m.created_at,
+                   u.nickname AS sender_nickname,
+                   u.avatar_url AS sender_avatar_url
+            FROM chat_messages m
+            LEFT JOIN users u ON m.sender_id = u.user_id
+            WHERE m.activity_id = #{activityId} AND m.msg_type = 1
+            ORDER BY m.created_at ASC
+            LIMIT #{limit}
+            """)
+    List<ChatMessageVO> findGroupTextMessages(@Param("activityId") Long activityId,
+                                               @Param("limit") int limit);
+
+    /**
+     * 查询活动群聊中的图片消息（用于 AI 旅行回忆图片池）
+     * 只取图片消息（msg_type=2），content 即图片 URL
+     */
+    @Select("""
+            SELECT m.content
+            FROM chat_messages m
+            WHERE m.activity_id = #{activityId} AND m.msg_type = 2
+            ORDER BY m.created_at ASC
+            LIMIT #{limit}
+            """)
+    List<String> findGroupImageUrls(@Param("activityId") Long activityId,
+                                     @Param("limit") int limit);
 }

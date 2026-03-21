@@ -4,6 +4,7 @@ import com.alibaba.csp.sentinel.annotation.SentinelResource;
 import com.alibaba.csp.sentinel.slots.block.BlockException;
 import com.limengyuan.partner.common.dto.vo.ActivityVO;
 import com.limengyuan.partner.common.dto.vo.RecommendedActivityVO;
+import com.limengyuan.partner.common.dto.vo.TravelMemoryVO;
 import com.limengyuan.partner.common.dto.request.CreateActivityRequest;
 import com.limengyuan.partner.common.dto.PageResult;
 import com.limengyuan.partner.common.entity.Activity;
@@ -11,6 +12,7 @@ import com.limengyuan.partner.common.result.Result;
 import com.limengyuan.partner.common.util.JwtUtils;
 import com.limengyuan.partner.post.service.ActivityRecommendService;
 import com.limengyuan.partner.post.service.ActivityService;
+import com.limengyuan.partner.post.service.TravelMemoryService;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
@@ -27,11 +29,14 @@ public class ActivityController {
 
     private final ActivityService activityService;
     private final ActivityRecommendService recommendService;
+    private final TravelMemoryService travelMemoryService;
 
     public ActivityController(ActivityService activityService,
-                              ActivityRecommendService recommendService) {
+                              ActivityRecommendService recommendService,
+                              TravelMemoryService travelMemoryService) {
         this.activityService = activityService;
         this.recommendService = recommendService;
+        this.travelMemoryService = travelMemoryService;
     }
 
     /**
@@ -125,6 +130,31 @@ public class ActivityController {
             @RequestParam(value = "size", defaultValue = "5") int size,
             @RequestParam(value = "categoryId", required = false) Integer categoryId) {
         return activityService.getAllActivities(page, size, categoryId);
+    }
+    // ==================== AI 旅行回忆 ====================
+
+    /**
+     * AI 生成旅行回忆视频脚本
+     * GET /api/activities/{id}/travel-memory
+     *
+     * 融合活动数据、群聊记录、账单信息，调用 AI 生成结构化视频脚本
+     * 请求头需携带: Authorization: Bearer {token}
+     */
+    @GetMapping("/{id:\\d+}/travel-memory")
+    public Result<TravelMemoryVO> generateTravelMemory(
+            @PathVariable("id") Long activityId,
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            return Result.error("未登录或 Token 无效");
+        }
+
+        Long userId = JwtUtils.getUserIdFromToken(authHeader);
+        if (userId == null) {
+            return Result.error("Token 无效或已过期");
+        }
+
+        return travelMemoryService.generateTravelMemory(activityId, userId);
     }
 
     // ==================== Sentinel 降级处理方法 ====================

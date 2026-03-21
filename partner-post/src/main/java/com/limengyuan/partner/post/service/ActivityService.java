@@ -77,6 +77,7 @@ public class ActivityService {
                 .maxParticipants(
                         request.getMaxParticipants() != null ? request.getMaxParticipants() : DEFAULT_MAX_PARTICIPANTS)
                 .paymentType(request.getPaymentType() != null ? request.getPaymentType() : DEFAULT_PAYMENT_TYPE)
+                .budget(request.getBudget())
                 .status(STATUS_RECRUITING)
                 .build();
 
