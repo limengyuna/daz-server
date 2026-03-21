@@ -25,14 +25,28 @@ public class AdminMomentService {
      *
      * @param keyword 搜索关键词（内容）
      * @param status  动态状态筛选（可为 null）
+     * @param userId  用户ID筛选（可为 null）
      * @param page    页码，从0开始
      * @param size    每页数量
      */
-    public Result<PageResult<MomentVO>> getMomentList(String keyword, Integer status, int page, int size) {
+    public Result<PageResult<MomentVO>> getMomentList(String keyword, Integer status, Long userId, int page, int size) {
         int offset = page * size;
-        List<MomentVO> moments = adminMomentMapper.findMomentsPage(keyword, status, size, offset);
-        long total = adminMomentMapper.countMoments(keyword, status);
+        List<MomentVO> moments = adminMomentMapper.findMomentsPage(keyword, status, userId, size, offset);
+        long total = adminMomentMapper.countMoments(keyword, status, userId);
         return Result.success(PageResult.of(moments, total, page, size));
+    }
+
+    /**
+     * 根据动态ID查询详情
+     *
+     * @param momentId 动态ID
+     */
+    public Result<MomentVO> getMomentDetail(Long momentId) {
+        MomentVO moment = adminMomentMapper.findMomentById(momentId);
+        if (moment == null) {
+            return Result.error("动态不存在");
+        }
+        return Result.success(moment);
     }
 
     /**

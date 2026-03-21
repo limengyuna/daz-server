@@ -38,11 +38,14 @@ public interface AdminActivityMapper extends BaseMapper<Activity> {
             "  <if test='status != null'>" +
             "    AND a.status = #{status}" +
             "  </if>" +
+            "  <if test='userId != null'>" +
+            "    AND a.initiator_id = #{userId}" +
+            "  </if>" +
             "</where>" +
             "ORDER BY a.created_at DESC " +
             "LIMIT #{limit} OFFSET #{offset}" +
             "</script>")
-    List<ActivityVO> findActivitiesPage(String keyword, Integer status, int limit, int offset);
+    List<ActivityVO> findActivitiesPage(String keyword, Integer status, Long userId, int limit, int offset);
 
     /**
      * 统计活动总数（支持关键词和状态过滤）
@@ -56,9 +59,30 @@ public interface AdminActivityMapper extends BaseMapper<Activity> {
             "  <if test='status != null'>" +
             "    AND status = #{status}" +
             "  </if>" +
+            "  <if test='userId != null'>" +
+            "    AND initiator_id = #{userId}" +
+            "  </if>" +
             "</where>" +
             "</script>")
-    long countActivities(String keyword, Integer status);
+    long countActivities(String keyword, Integer status, Long userId);
+
+    /**
+     * 根据活动ID查询详情
+     *
+     * @param activityId 活动ID
+     * @return 活动详情（包含发起人信息）
+     */
+    @Select("SELECT a.activity_id, a.title, a.description, a.images, " +
+            "  a.location_name, a.location_address, a.category_ids, " +
+            "  a.start_time, a.end_time, a.max_participants, a.payment_type, " +
+            "  a.status, a.created_at, " +
+            "  u.user_id AS initiator_id, u.nickname AS initiator_nickname, u.avatar_url AS initiator_avatar, " +
+            "  u.credit_score AS initiator_credit_score, " +
+            "  (SELECT COUNT(*) FROM participants p WHERE p.activity_id = a.activity_id AND p.status = 1) AS current_participants " +
+            "FROM activities a " +
+            "LEFT JOIN users u ON a.initiator_id = u.user_id " +
+            "WHERE a.activity_id = #{activityId}")
+    ActivityVO findActivityById(Long activityId);
 
     /**
      * 更新活动状态（下架/恢复）

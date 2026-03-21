@@ -23,10 +23,11 @@ public interface AdminMomentMapper extends BaseMapper<Moment> {
      * @return 动态列表
      */
     @Select("<script>" +
-            "SELECT m.moment_id, m.content, m.images, m.location_name, " +
+            "SELECT m.moment_id, m.content, m.images, m.location_name, m.location_address, " +
             "  m.visibility, m.like_count, m.comment_count, m.view_count, " +
             "  m.status, m.created_at, " +
-            "  u.user_id, u.nickname, u.avatar_url " +
+            "  u.user_id, u.nickname AS user_nickname, u.avatar_url AS user_avatar, " +
+            "  u.credit_score AS user_credit_score " +
             "FROM moments m " +
             "LEFT JOIN users u ON m.user_id = u.user_id " +
             "<where>" +
@@ -36,11 +37,14 @@ public interface AdminMomentMapper extends BaseMapper<Moment> {
             "  <if test='status != null'>" +
             "    AND m.status = #{status}" +
             "  </if>" +
+            "  <if test='userId != null'>" +
+            "    AND m.user_id = #{userId}" +
+            "  </if>" +
             "</where>" +
             "ORDER BY m.created_at DESC " +
             "LIMIT #{limit} OFFSET #{offset}" +
             "</script>")
-    List<MomentVO> findMomentsPage(String keyword, Integer status, int limit, int offset);
+    List<MomentVO> findMomentsPage(String keyword, Integer status, Long userId, int limit, int offset);
 
     /**
      * 统计动态总数（支持关键词和状态过滤）
@@ -54,9 +58,28 @@ public interface AdminMomentMapper extends BaseMapper<Moment> {
             "  <if test='status != null'>" +
             "    AND status = #{status}" +
             "  </if>" +
+            "  <if test='userId != null'>" +
+            "    AND user_id = #{userId}" +
+            "  </if>" +
             "</where>" +
             "</script>")
-    long countMoments(String keyword, Integer status);
+    long countMoments(String keyword, Integer status, Long userId);
+
+    /**
+     * 根据动态ID查询详情
+     *
+     * @param momentId 动态ID
+     * @return 动态详情（包含发布者信息）
+     */
+    @Select("SELECT m.moment_id, m.content, m.images, m.location_name, m.location_address, " +
+            "  m.visibility, m.like_count, m.comment_count, m.view_count, " +
+            "  m.status, m.created_at, " +
+            "  u.user_id, u.nickname AS user_nickname, u.avatar_url AS user_avatar, " +
+            "  u.credit_score AS user_credit_score " +
+            "FROM moments m " +
+            "LEFT JOIN users u ON m.user_id = u.user_id " +
+            "WHERE m.moment_id = #{momentId}")
+    MomentVO findMomentById(Long momentId);
 
     /**
      * 更新动态状态（屏蔽/恢复）

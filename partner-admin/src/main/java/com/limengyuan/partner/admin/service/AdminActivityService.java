@@ -25,14 +25,28 @@ public class AdminActivityService {
      *
      * @param keyword 搜索关键词（标题）
      * @param status  活动状态筛选（可为 null）
+     * @param userId  用户ID筛选（可为 null）
      * @param page    页码，从0开始
      * @param size    每页数量
      */
-    public Result<PageResult<ActivityVO>> getActivityList(String keyword, Integer status, int page, int size) {
+    public Result<PageResult<ActivityVO>> getActivityList(String keyword, Integer status, Long userId, int page, int size) {
         int offset = page * size;
-        List<ActivityVO> activities = adminActivityMapper.findActivitiesPage(keyword, status, size, offset);
-        long total = adminActivityMapper.countActivities(keyword, status);
+        List<ActivityVO> activities = adminActivityMapper.findActivitiesPage(keyword, status, userId, size, offset);
+        long total = adminActivityMapper.countActivities(keyword, status, userId);
         return Result.success(PageResult.of(activities, total, page, size));
+    }
+
+    /**
+     * 根据活动ID查询详情
+     *
+     * @param activityId 活动ID
+     */
+    public Result<ActivityVO> getActivityDetail(Long activityId) {
+        ActivityVO activity = adminActivityMapper.findActivityById(activityId);
+        if (activity == null) {
+            return Result.error("活动不存在");
+        }
+        return Result.success(activity);
     }
 
     /**

@@ -24,8 +24,8 @@ public class AdminActivityController {
     }
 
     /**
-     * 获取活动列表（分页 + 搜索 + 状态筛选）
-     * GET /api/admin/activities?page=0&size=10&keyword=xxx&status=0
+     * 获取活动列表（分页 + 搜索 + 状态筛选 + 用户筛选）
+     * GET /api/admin/activities?page=0&size=10&keyword=xxx&status=0&userId=1
      */
     @GetMapping
     public Result<PageResult<ActivityVO>> getActivityList(
@@ -33,13 +33,30 @@ public class AdminActivityController {
             @RequestParam(value = "page", defaultValue = "0") int page,
             @RequestParam(value = "size", defaultValue = "10") int size,
             @RequestParam(value = "keyword", required = false) String keyword,
-            @RequestParam(value = "status", required = false) Integer status) {
+            @RequestParam(value = "status", required = false) Integer status,
+            @RequestParam(value = "userId", required = false) Long userId) {
 
         if (adminAuthService.getAdminIdFromToken(authHeader) == null) {
             return Result.error(401, "未登录或无管理员权限");
         }
 
-        return adminActivityService.getActivityList(keyword, status, page, size);
+        return adminActivityService.getActivityList(keyword, status, userId, page, size);
+    }
+
+    /**
+     * 获取活动详情
+     * GET /api/admin/activities/{activityId}
+     */
+    @GetMapping("/{activityId}")
+    public Result<ActivityVO> getActivityDetail(
+            @RequestHeader(value = "Authorization", required = false) String authHeader,
+            @PathVariable("activityId") Long activityId) {
+
+        if (adminAuthService.getAdminIdFromToken(authHeader) == null) {
+            return Result.error(401, "未登录或无管理员权限");
+        }
+
+        return adminActivityService.getActivityDetail(activityId);
     }
 
     /**
