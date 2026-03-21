@@ -6,6 +6,7 @@ import com.limengyuan.partner.common.entity.Activity;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
+import org.apache.ibatis.annotations.Update;
 
 import java.util.List;
 
@@ -126,4 +127,12 @@ public interface ActivityMapper extends BaseMapper<Activity> {
             LIMIT #{limit}
             """)
     List<ActivityVO> findRecruitingActivities(@Param("limit") int limit);
+
+    /**
+     * 更新活动状态
+     * @param activityId 活动ID
+     * @param status 新状态: 0-招募中, 1-已满员, 2-活动结束, 3-已取消
+     */
+    @Update("UPDATE activities SET status = #{status}, updated_at = NOW() WHERE activity_id = #{activityId}")
+    boolean updateStatus(@Param("activityId") Long activityId, @Param("status") Integer status);
 }

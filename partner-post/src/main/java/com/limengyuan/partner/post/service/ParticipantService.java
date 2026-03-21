@@ -143,10 +143,16 @@ public class ParticipantService {
             return Result.error("活动已满员，无法通过更多申请");
         }
 
-        // 6. 更新状态
+        // 6. 更新参与者状态
         boolean success = participantMapper.updateStatus(participantId, Participant.STATUS_APPROVED);
         if (!success) {
             return Result.error("操作失败");
+        }
+
+        // 7. 通过后检查是否已满员，满员则更新活动状态
+        int newCount = currentCount + 1;
+        if (newCount >= activity.getMaxParticipants() - 1) {
+            activityMapper.updateStatus(activity.getActivityId(), 1); // 1 = 已满员
         }
 
         return Result.success("已通过", null);
@@ -195,9 +201,20 @@ public class ParticipantService {
             return Result.error("您已退出该活动");
         }
 
+        // 记录退出前的状态，用于判断是否需要恢复活动招募状态
+        int previousStatus = participant.getStatus();
+
         boolean success = participantMapper.updateStatus(participant.getParticipantId(), Participant.STATUS_LEFT);
         if (!success) {
             return Result.error("操作失败");
+        }
+
+        // 如果退出的是已通过的成员，且活动当前是已满员状态，则恢复为招募中
+        if (previousStatus == Participant.STATUS_APPROVED) {
+            Activity activity = activityMapper.selectById(activityId);
+            if (activity != null && activity.getStatus() == 1) { // 1 = 已满员
+                activityMapper.updateStatus(activityId, 0); // 0 = 招募中
+            }
         }
 
         return Result.success("已退出活动", null);
@@ -235,6 +252,13 @@ public class ParticipantService {
                 return Result.error("活动已满员，无法通过更多申请");
             }
             participantMapper.updateStatus(participantId, Participant.STATUS_APPROVED);
+
+            // 通过后检查是否已满员，满员则更新活动状态
+            int newCount = currentCount + 1;
+            if (newCount >= activity.getMaxParticipants() - 1) {
+                activityMapper.updateStatus(activity.getActivityId(), 1); // 1 = 已满员
+            }
+
             return Result.success("已通过", null);
         } else {
             participantMapper.updateStatus(participantId, Participant.STATUS_REJECTED);
