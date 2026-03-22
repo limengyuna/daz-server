@@ -16,7 +16,7 @@ COPY target/*.jar app.jar
 EXPOSE 8080
 
 # JVM 参数（适配 2GB 小内存服务器）
-ENV JAVA_OPTS="-Xms128m -Xmx256m -XX:MaxMetaspaceSize=128m -XX:+UseSerialGC -XX:MaxDirectMemorySize=64m"
+ENV JAVA_OPTS="-Xms128m -Xmx192m -XX:MaxMetaspaceSize=128m -XX:+UseSerialGC -XX:MaxDirectMemorySize=64m"
 
 # 启动应用，激活 docker 配置
 ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -Duser.timezone=Asia/Shanghai -Dspring.profiles.active=docker -jar app.jar"]

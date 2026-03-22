@@ -37,8 +37,8 @@ services:
       - partner-network
     restart: always
     # 内存限制：防止单个容器吃光系统内存
-    mem_limit: 384m
-    memswap_limit: 384m
+    mem_limit: 320m
+    memswap_limit: 320m
     # 健康检查：每30秒检测一次，连续3次失败则标记不健康
     healthcheck:
       test: ["CMD-SHELL", "wget -q --spider http://localhost:8080/actuator/health || exit 1"]
@@ -136,8 +136,8 @@ services:
     networks:
       - partner-network
     restart: always
-    mem_limit: 384m
-    memswap_limit: 384m
+    mem_limit: 320m
+    memswap_limit: 320m
     healthcheck:
       test: ["CMD-SHELL", "wget -q --spider http://localhost:8083/actuator/health || exit 1"]
       interval: 30s
@@ -169,8 +169,8 @@ services:
     networks:
       - partner-network
     restart: always
-    mem_limit: 384m
-    memswap_limit: 384m
+    mem_limit: 320m
+    memswap_limit: 320m
     healthcheck:
       test: ["CMD-SHELL", "wget -q --spider http://localhost:8084/actuator/health || exit 1"]
       interval: 30s
@@ -198,7 +198,7 @@ services:
     mem_limit: 256m
     memswap_limit: 256m
     environment:
-      - JAVA_OPTS=-Xms64m -Xmx128m
+      - JAVA_OPTS=-Xms64m -Xmx128m -XX:MaxMetaspaceSize=64m -XX:+UseSerialGC
     healthcheck:
       test: ["CMD-SHELL", "wget -q --spider http://localhost:9411/health || exit 1"]
       interval: 30s

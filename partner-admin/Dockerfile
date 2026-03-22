@@ -14,4 +14,4 @@ ENV TZ=Asia/Shanghai
 EXPOSE 8084
 
 # 启动命令，激活 docker 配置
-ENTRYPOINT ["java", "-Xms128m", "-Xmx256m", "-Dspring.profiles.active=docker", "-jar", "app.jar"]
+ENTRYPOINT ["java", "-Xms128m", "-Xmx192m", "-XX:MaxMetaspaceSize=128m", "-XX:+UseSerialGC", "-Dspring.profiles.active=docker", "-jar", "app.jar"]
