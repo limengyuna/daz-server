@@ -10,9 +10,7 @@ import com.limengyuan.partner.common.util.JwtUtils;
 import com.limengyuan.partner.user.mapper.UserMapper;
 import org.springframework.web.bind.annotation.*;
 
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.util.HexFormat;
+import org.mindrot.jbcrypt.BCrypt;
 
 /**
  * 认证控制器 - 登录注册
@@ -39,8 +37,8 @@ public class AuthController {
             return Result.error("用户名已存在");
         }
 
-        // 2. 密码加密
-        String passwordHash = hashPassword(request.getPassword());
+        // 2. 密码加密 (使用 BCrypt)
+        String passwordHash = BCrypt.hashpw(request.getPassword(), BCrypt.gensalt());
 
         // 3. 构建用户实体并插入（MP 自动回填 userId）
         User user = User.builder()
@@ -72,9 +70,8 @@ public class AuthController {
             return Result.error("用户名或密码错误");
         }
 
-        // 2. 验证密码
-        String passwordHash = hashPassword(request.getPassword());
-        if (!passwordHash.equals(user.getPasswordHash())) {
+        // 2. 验证密码 (使用 BCrypt)
+        if (user.getPasswordHash() == null || !BCrypt.checkpw(request.getPassword(), user.getPasswordHash())) {
             return Result.error("用户名或密码错误");
         }
 
@@ -109,16 +106,5 @@ public class AuthController {
         return Result.success(available ? "用户名可用" : "用户名已被占用", available);
     }
 
-    /**
-     * 密码加密 (SHA-256)
-     */
-    private String hashPassword(String password) {
-        try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] hash = digest.digest(password.getBytes());
-            return HexFormat.of().formatHex(hash);
-        } catch (NoSuchAlgorithmException e) {
-            throw new RuntimeException("密码加密失败", e);
-        }
-    }
+
 }
