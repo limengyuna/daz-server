@@ -1,26 +1,24 @@
 package com.limengyuan.partner.admin.controller;
 
-import com.limengyuan.partner.admin.service.AdminAuthService;
 import com.limengyuan.partner.admin.service.AdminUserService;
 import com.limengyuan.partner.common.dto.PageResult;
 import com.limengyuan.partner.common.entity.User;
 import com.limengyuan.partner.common.result.Result;
+import com.limengyuan.partner.common.util.UserContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 /**
  * 管理员端 - 用户管理控制器
+ * 鉴权已由网关统一完成，通过 UserContextHolder 获取管理员身份
  */
 @RestController
 @RequestMapping("/api/admin/users")
 public class AdminUserController {
 
     private final AdminUserService adminUserService;
-    private final AdminAuthService adminAuthService;
 
-    public AdminUserController(AdminUserService adminUserService,
-                                AdminAuthService adminAuthService) {
+    public AdminUserController(AdminUserService adminUserService) {
         this.adminUserService = adminUserService;
-        this.adminAuthService = adminAuthService;
     }
 
     /**
@@ -29,13 +27,12 @@ public class AdminUserController {
      */
     @GetMapping
     public Result<PageResult<User>> getUserList(
-            @RequestHeader(value = "Authorization", required = false) String authHeader,
             @RequestParam(value = "page", defaultValue = "0") int page,
             @RequestParam(value = "size", defaultValue = "10") int size,
             @RequestParam(value = "keyword", required = false) String keyword) {
 
-        // 验证管理员身份
-        if (adminAuthService.getAdminIdFromToken(authHeader) == null) {
+        Long adminId = UserContextHolder.getPrincipalId();
+        if (adminId == null) {
             return Result.error(401, "未登录或无管理员权限");
         }
 
@@ -47,14 +44,11 @@ public class AdminUserController {
      * GET /api/admin/users/{userId}
      */
     @GetMapping("/{userId}")
-    public Result<User> getUserDetail(
-            @RequestHeader(value = "Authorization", required = false) String authHeader,
-            @PathVariable("userId") Long userId) {
-
-        if (adminAuthService.getAdminIdFromToken(authHeader) == null) {
+    public Result<User> getUserDetail(@PathVariable("userId") Long userId) {
+        Long adminId = UserContextHolder.getPrincipalId();
+        if (adminId == null) {
             return Result.error(401, "未登录或无管理员权限");
         }
-
         return adminUserService.getUserDetail(userId);
     }
 
@@ -63,14 +57,11 @@ public class AdminUserController {
      * PUT /api/admin/users/{userId}/ban
      */
     @PutMapping("/{userId}/ban")
-    public Result<Void> banUser(
-            @RequestHeader(value = "Authorization", required = false) String authHeader,
-            @PathVariable("userId") Long userId) {
-
-        if (adminAuthService.getAdminIdFromToken(authHeader) == null) {
+    public Result<Void> banUser(@PathVariable("userId") Long userId) {
+        Long adminId = UserContextHolder.getPrincipalId();
+        if (adminId == null) {
             return Result.error(401, "未登录或无管理员权限");
         }
-
         return adminUserService.banUser(userId);
     }
 
@@ -79,14 +70,11 @@ public class AdminUserController {
      * PUT /api/admin/users/{userId}/unban
      */
     @PutMapping("/{userId}/unban")
-    public Result<Void> unbanUser(
-            @RequestHeader(value = "Authorization", required = false) String authHeader,
-            @PathVariable("userId") Long userId) {
-
-        if (adminAuthService.getAdminIdFromToken(authHeader) == null) {
+    public Result<Void> unbanUser(@PathVariable("userId") Long userId) {
+        Long adminId = UserContextHolder.getPrincipalId();
+        if (adminId == null) {
             return Result.error(401, "未登录或无管理员权限");
         }
-
         return adminUserService.unbanUser(userId);
     }
 }

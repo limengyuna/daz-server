@@ -8,6 +8,7 @@ import com.limengyuan.partner.common.dto.vo.MomentVO;
 import com.limengyuan.partner.common.dto.PageResult;
 import com.limengyuan.partner.common.dto.request.UpdateMomentRequest;
 import com.limengyuan.partner.common.result.Result;
+import com.limengyuan.partner.common.util.PageHelper;
 import com.limengyuan.partner.common.util.UserContextHolder;
 import com.limengyuan.partner.post.service.MomentService;
 import jakarta.validation.Valid;
@@ -53,6 +54,8 @@ public class MomentController {
     public Result<PageResult<MomentVO>> getMomentList(
             @RequestParam(value = "page", defaultValue = "0") int page,
             @RequestParam(value = "size", defaultValue = "10") int size) {
+        page = PageHelper.safePage(page);
+        size = PageHelper.safeSize(size);
         return momentService.getMomentList(page, size);
     }
 

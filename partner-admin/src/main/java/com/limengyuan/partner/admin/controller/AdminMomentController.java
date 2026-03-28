@@ -1,26 +1,24 @@
 package com.limengyuan.partner.admin.controller;
 
-import com.limengyuan.partner.admin.service.AdminAuthService;
 import com.limengyuan.partner.admin.service.AdminMomentService;
 import com.limengyuan.partner.common.dto.PageResult;
 import com.limengyuan.partner.common.dto.vo.MomentVO;
 import com.limengyuan.partner.common.result.Result;
+import com.limengyuan.partner.common.util.UserContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 /**
  * 管理员端 - 动态管理控制器
+ * 鉴权已由网关统一完成，通过 UserContextHolder 获取管理员身份
  */
 @RestController
 @RequestMapping("/api/admin/moments")
 public class AdminMomentController {
 
     private final AdminMomentService adminMomentService;
-    private final AdminAuthService adminAuthService;
 
-    public AdminMomentController(AdminMomentService adminMomentService,
-                                  AdminAuthService adminAuthService) {
+    public AdminMomentController(AdminMomentService adminMomentService) {
         this.adminMomentService = adminMomentService;
-        this.adminAuthService = adminAuthService;
     }
 
     /**
@@ -29,14 +27,14 @@ public class AdminMomentController {
      */
     @GetMapping
     public Result<PageResult<MomentVO>> getMomentList(
-            @RequestHeader(value = "Authorization", required = false) String authHeader,
             @RequestParam(value = "page", defaultValue = "0") int page,
             @RequestParam(value = "size", defaultValue = "10") int size,
             @RequestParam(value = "keyword", required = false) String keyword,
             @RequestParam(value = "status", required = false) Integer status,
             @RequestParam(value = "userId", required = false) Long userId) {
 
-        if (adminAuthService.getAdminIdFromToken(authHeader) == null) {
+        Long adminId = UserContextHolder.getPrincipalId();
+        if (adminId == null) {
             return Result.error(401, "未登录或无管理员权限");
         }
 
@@ -48,14 +46,11 @@ public class AdminMomentController {
      * GET /api/admin/moments/{momentId}
      */
     @GetMapping("/{momentId}")
-    public Result<MomentVO> getMomentDetail(
-            @RequestHeader(value = "Authorization", required = false) String authHeader,
-            @PathVariable("momentId") Long momentId) {
-
-        if (adminAuthService.getAdminIdFromToken(authHeader) == null) {
+    public Result<MomentVO> getMomentDetail(@PathVariable("momentId") Long momentId) {
+        Long adminId = UserContextHolder.getPrincipalId();
+        if (adminId == null) {
             return Result.error(401, "未登录或无管理员权限");
         }
-
         return adminMomentService.getMomentDetail(momentId);
     }
 
@@ -64,14 +59,11 @@ public class AdminMomentController {
      * PUT /api/admin/moments/{momentId}/block
      */
     @PutMapping("/{momentId}/block")
-    public Result<Void> blockMoment(
-            @RequestHeader(value = "Authorization", required = false) String authHeader,
-            @PathVariable("momentId") Long momentId) {
-
-        if (adminAuthService.getAdminIdFromToken(authHeader) == null) {
+    public Result<Void> blockMoment(@PathVariable("momentId") Long momentId) {
+        Long adminId = UserContextHolder.getPrincipalId();
+        if (adminId == null) {
             return Result.error(401, "未登录或无管理员权限");
         }
-
         return adminMomentService.blockMoment(momentId);
     }
 
@@ -80,14 +72,11 @@ public class AdminMomentController {
      * PUT /api/admin/moments/{momentId}/restore
      */
     @PutMapping("/{momentId}/restore")
-    public Result<Void> restoreMoment(
-            @RequestHeader(value = "Authorization", required = false) String authHeader,
-            @PathVariable("momentId") Long momentId) {
-
-        if (adminAuthService.getAdminIdFromToken(authHeader) == null) {
+    public Result<Void> restoreMoment(@PathVariable("momentId") Long momentId) {
+        Long adminId = UserContextHolder.getPrincipalId();
+        if (adminId == null) {
             return Result.error(401, "未登录或无管理员权限");
         }
-
         return adminMomentService.restoreMoment(momentId);
     }
 }

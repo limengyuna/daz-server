@@ -236,9 +236,9 @@ services:
     container_name: sentinel-dashboard
     ports:
       - "8858:8858"
-    # 覆盖启动命令，限制 JVM 堆内存防止 OOM
+    # 覆盖启动命令，限制 JVM 堆内存
     command: >
-      java -Xms64m -Xmx128m -XX:MaxMetaspaceSize=64m -XX:+UseSerialGC
+      java -Xms128m -Xmx256m -XX:MaxMetaspaceSize=96m -XX:+UseSerialGC
       -Dserver.port=8858
       -Dcsp.sentinel.dashboard.server=localhost:8858
       -Dproject.name=sentinel-dashboard
@@ -247,8 +247,8 @@ services:
       - partner-network
     restart: always
     # 内存限制
-    mem_limit: 256m
-    memswap_limit: 256m
+    mem_limit: 512m
+    memswap_limit: 512m
     logging:
       driver: json-file
       options:

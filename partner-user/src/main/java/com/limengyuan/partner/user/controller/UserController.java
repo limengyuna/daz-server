@@ -3,10 +3,12 @@ package com.limengyuan.partner.user.controller;
 import com.alibaba.csp.sentinel.annotation.SentinelResource;
 import com.alibaba.csp.sentinel.slots.block.BlockException;
 import com.limengyuan.partner.common.dto.PageResult;
+import com.limengyuan.partner.common.dto.request.UpdateUserRequest;
 import com.limengyuan.partner.common.dto.response.UserMeResponse;
 import com.limengyuan.partner.common.dto.vo.UserProfileVO;
 import com.limengyuan.partner.common.entity.User;
 import com.limengyuan.partner.common.result.Result;
+import com.limengyuan.partner.common.util.PageHelper;
 import com.limengyuan.partner.common.util.UserContextHolder;
 import com.limengyuan.partner.user.service.UserService;
 import com.limengyuan.partner.user.service.UserFollowService;
@@ -80,21 +82,21 @@ public class UserController {
     }
 
     /**
-     * 获取用户列表
+     * 获取用户列表（返回脱敏后的 VO）
      * GET /api/user/list
      */
     @GetMapping("/list")
     @SentinelResource(value = "listUsers", blockHandler = "listUsersBlockHandler")
-    public Result<List<User>> listUsers() {
+    public Result<List<UserProfileVO>> listUsers() {
         return userService.getAllUsers();
     }
 
     /**
-     * 更新用户信息
+     * 更新用户信息（入参为 DTO，只允许修改安全字段）
      * PUT /api/user/{id}
      */
     @PutMapping("/{id}")
-    public Result<User> updateUser(@PathVariable("id") Long userId, @RequestBody User user) {
+    public Result<UserProfileVO> updateUser(@PathVariable("id") Long userId, @RequestBody UpdateUserRequest request) {
         Long currentUserId = UserContextHolder.getPrincipalId();
         if (currentUserId == null) {
             return Result.error(401, "未登录");
@@ -103,8 +105,7 @@ public class UserController {
         if (!currentUserId.equals(userId)) {
             return Result.error(403, "无权修改其他用户的资料");
         }
-        user.setUserId(currentUserId); // 强制替换请求体中的 ID，防止污染
-        return userService.updateUser(currentUserId, user);
+        return userService.updateUser(currentUserId, request);
     }
 
     /**
@@ -170,7 +171,7 @@ public class UserController {
      * GET /api/user/following?page=0&size=10
      */
     @GetMapping("/following")
-    public Result<PageResult<User>> getFollowingList(
+    public Result<PageResult<UserProfileVO>> getFollowingList(
             @RequestParam(value = "page", defaultValue = "0") int page,
             @RequestParam(value = "size", defaultValue = "10") int size) {
 
@@ -179,8 +180,8 @@ public class UserController {
             return Result.error("未登录或 Token 无效");
         }
 
-        if (page < 0) page = 0;
-        if (size <= 0 || size > 100) size = 10;
+        page = PageHelper.safePage(page);
+        size = PageHelper.safeSize(size);
 
         return userFollowService.getFollowingList(currentUserId, page, size);
     }
@@ -190,7 +191,7 @@ public class UserController {
      * GET /api/user/followers?page=0&size=10
      */
     @GetMapping("/followers")
-    public Result<PageResult<User>> getFollowersList(
+    public Result<PageResult<UserProfileVO>> getFollowersList(
             @RequestParam(value = "page", defaultValue = "0") int page,
             @RequestParam(value = "size", defaultValue = "10") int size) {
 
@@ -199,8 +200,8 @@ public class UserController {
             return Result.error("未登录或 Token 无效");
         }
 
-        if (page < 0) page = 0;
-        if (size <= 0 || size > 100) size = 10;
+        page = PageHelper.safePage(page);
+        size = PageHelper.safeSize(size);
 
         return userFollowService.getFollowersList(currentUserId, page, size);
     }
@@ -210,13 +211,13 @@ public class UserController {
      * GET /api/user/{userId}/following?page=0&size=10
      */
     @GetMapping("/{userId}/following")
-    public Result<PageResult<User>> getUserFollowingList(
+    public Result<PageResult<UserProfileVO>> getUserFollowingList(
             @PathVariable("userId") Long userId,
             @RequestParam(value = "page", defaultValue = "0") int page,
             @RequestParam(value = "size", defaultValue = "10") int size) {
         
-        if (page < 0) page = 0;
-        if (size <= 0 || size > 100) size = 10;
+        page = PageHelper.safePage(page);
+        size = PageHelper.safeSize(size);
         
         return userFollowService.getFollowingList(userId, page, size);
     }
@@ -226,13 +227,13 @@ public class UserController {
      * GET /api/user/{userId}/followers?page=0&size=10
      */
     @GetMapping("/{userId}/followers")
-    public Result<PageResult<User>> getUserFollowersList(
+    public Result<PageResult<UserProfileVO>> getUserFollowersList(
             @PathVariable("userId") Long userId,
             @RequestParam(value = "page", defaultValue = "0") int page,
             @RequestParam(value = "size", defaultValue = "10") int size) {
         
-        if (page < 0) page = 0;
-        if (size <= 0 || size > 100) size = 10;
+        page = PageHelper.safePage(page);
+        size = PageHelper.safeSize(size);
         
         return userFollowService.getFollowersList(userId, page, size);
     }
@@ -252,7 +253,6 @@ public class UserController {
      * 获取当前用户信息 - 限流降级处理
      */
     public Result<UserMeResponse> getUserMeBlockHandler(BlockException ex) {
-        // [修改说明：移除了原有的 Sentinel Handler 的 token 参数，防止其签名与 Controller 声明方法不一致导致报错]
         log.warn("[Sentinel] 获取当前用户信息接口被限流/降级", ex);
         return Result.error("系统繁忙，请稍后再试");
     }
@@ -269,7 +269,7 @@ public class UserController {
     /**
      * 获取用户列表 - 限流降级处理
      */
-    public Result<List<User>> listUsersBlockHandler(BlockException ex) {
+    public Result<List<UserProfileVO>> listUsersBlockHandler(BlockException ex) {
         log.warn("[Sentinel] 获取用户列表接口被限流/降级", ex);
         return Result.error("系统繁忙，请稍后再试");
     }

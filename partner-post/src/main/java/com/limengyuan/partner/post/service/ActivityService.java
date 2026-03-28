@@ -43,7 +43,7 @@ public class ActivityService {
     /**
      * 创建活动
      */
-    public Result<Activity> createActivity(Long initiatorId, CreateActivityRequest request) {
+    public Result<ActivityVO> createActivity(Long initiatorId, CreateActivityRequest request) {
         // 1. 处理 images 为 JSON 字符串
         String imagesJson = null;
         if (request.getImages() != null && !request.getImages().isEmpty()) {
@@ -87,8 +87,8 @@ public class ActivityService {
             return Result.error("创建活动失败");
         }
 
-        // 4. 查询并返回新创建的活动
-        Activity created = activityMapper.selectById(activity.getActivityId());
+        // 4. 查询并返回完整的 ActivityVO（包含发起人信息）
+        ActivityVO created = activityMapper.findByIdWithUser(activity.getActivityId());
         if (created != null) {
             return Result.success("发布成功", created);
         }

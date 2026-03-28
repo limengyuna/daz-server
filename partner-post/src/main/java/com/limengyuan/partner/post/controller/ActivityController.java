@@ -7,7 +7,6 @@ import com.limengyuan.partner.common.dto.vo.RecommendedActivityVO;
 import com.limengyuan.partner.common.dto.vo.TravelMemoryVO;
 import com.limengyuan.partner.common.dto.request.CreateActivityRequest;
 import com.limengyuan.partner.common.dto.PageResult;
-import com.limengyuan.partner.common.entity.Activity;
 import com.limengyuan.partner.common.result.Result;
 import com.limengyuan.partner.common.util.UserContextHolder;
 import com.limengyuan.partner.post.service.ActivityRecommendService;
@@ -44,7 +43,7 @@ public class ActivityController {
      * POST /api/activities
      */
     @PostMapping
-    public Result<Activity> createActivity(@Valid @RequestBody CreateActivityRequest request) {
+    public Result<ActivityVO> createActivity(@Valid @RequestBody CreateActivityRequest request) {
         Long userId = UserContextHolder.getPrincipalId();
         if (userId == null) {
             return Result.error("未登录或 Token 无效");

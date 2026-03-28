@@ -1,9 +1,9 @@
 package com.limengyuan.partner.user.controller;
 
-import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.limengyuan.partner.common.dto.request.LoginRequest;
 import com.limengyuan.partner.common.dto.response.LoginResponse;
 import com.limengyuan.partner.common.dto.request.RegisterRequest;
+import com.limengyuan.partner.common.dto.vo.UserProfileVO;
 import com.limengyuan.partner.common.entity.User;
 import com.limengyuan.partner.common.result.Result;
 import com.limengyuan.partner.common.util.JwtUtils;
@@ -30,7 +30,7 @@ public class AuthController {
      * POST /api/auth/register
      */
     @PostMapping("/register")
-    public Result<User> register(@RequestBody RegisterRequest request) {
+    public Result<UserProfileVO> register(@RequestBody RegisterRequest request) {
         // 1. 检查用户名是否已存在
         User existing = userMapper.findByUsername(request.getUsername());
         if (existing != null) {
@@ -53,9 +53,17 @@ public class AuthController {
 
         userMapper.insert(user);
 
-        // 4. 清除密码返回
-        user.setPasswordHash(null);
-        return Result.success("注册成功", user);
+        // 4. 返回脱敏后的 VO（不包含密码等敏感字段）
+        UserProfileVO vo = UserProfileVO.builder()
+                .userId(user.getUserId())
+                .nickname(user.getNickname())
+                .avatarUrl(user.getAvatarUrl())
+                .gender(user.getGender())
+                .city(user.getCity())
+                .creditScore(user.getCreditScore())
+                .createdAt(user.getCreatedAt())
+                .build();
+        return Result.success("注册成功", vo);
     }
 
     /**

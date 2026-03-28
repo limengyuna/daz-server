@@ -4,6 +4,7 @@ import com.limengyuan.partner.common.dto.vo.ReviewVO;
 import com.limengyuan.partner.common.dto.request.SubmitReviewRequest;
 import com.limengyuan.partner.common.dto.vo.UserReviewPageVO;
 import com.limengyuan.partner.common.result.Result;
+import com.limengyuan.partner.common.util.PageHelper;
 import com.limengyuan.partner.common.util.UserContextHolder;
 import com.limengyuan.partner.post.service.ReviewService;
 import org.springframework.web.bind.annotation.*;
@@ -63,13 +64,9 @@ public class ReviewController {
             @RequestParam(value = "page", defaultValue = "0") int page,
             @RequestParam(value = "size", defaultValue = "10") int size) {
 
-        // 参数校验
-        if (page < 0) {
-            page = 0;
-        }
-        if (size <= 0 || size > 100) {
-            size = 10;
-        }
+        // 参数校验（统一收口）
+        page = PageHelper.safePage(page);
+        size = PageHelper.safeSize(size);
 
         return reviewService.getUserReviews(userId, page, size);
     }

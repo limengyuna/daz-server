@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -34,8 +35,9 @@ public class User {
     private String username;
 
     /**
-     * 加密后的密码
+     * 加密后的密码（JSON 序列化时自动忽略，不会返回给前端）
      */
+    @JsonIgnore
     private String passwordHash;
 
     /**

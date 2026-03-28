@@ -2,6 +2,7 @@ package com.limengyuan.partner.user.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.limengyuan.partner.common.dto.PageResult;
+import com.limengyuan.partner.common.dto.vo.UserProfileVO;
 import com.limengyuan.partner.common.entity.User;
 import com.limengyuan.partner.common.entity.UserFollow;
 import com.limengyuan.partner.common.result.Result;
@@ -23,10 +24,12 @@ public class UserFollowService {
 
     private final UserFollowMapper userFollowMapper;
     private final UserMapper userMapper;
+    private final UserService userService;
 
-    public UserFollowService(UserFollowMapper userFollowMapper, UserMapper userMapper) {
+    public UserFollowService(UserFollowMapper userFollowMapper, UserMapper userMapper, UserService userService) {
         this.userFollowMapper = userFollowMapper;
         this.userMapper = userMapper;
+        this.userService = userService;
     }
 
     /**
@@ -97,40 +100,44 @@ public class UserFollowService {
     /**
      * 获取关注列表（我关注的人）- 分页
      */
-    public Result<PageResult<User>> getFollowingList(Long userId, int page, int size) {
+    public Result<PageResult<UserProfileVO>> getFollowingList(Long userId, int page, int size) {
         // 计算偏移量
         int offset = page * size;
         
         // 获取分页数据
         List<User> followingList = userFollowMapper.getFollowingList(userId, offset, size);
-        // 不返回密码
-        followingList.forEach(user -> user.setPasswordHash(null));
+        // 转换为 VO，脱敏
+        List<UserProfileVO> voList = followingList.stream()
+                .map(userService::toProfileVO)
+                .collect(java.util.stream.Collectors.toList());
         
         // 获取总数
         int total = getFollowingCount(userId);
         
         // 构建分页结果
-        PageResult<User> pageResult = PageResult.of(followingList, total, page, size);
+        PageResult<UserProfileVO> pageResult = PageResult.of(voList, total, page, size);
         return Result.success(pageResult);
     }
 
     /**
      * 获取粉丝列表（关注我的人）- 分页
      */
-    public Result<PageResult<User>> getFollowersList(Long userId, int page, int size) {
+    public Result<PageResult<UserProfileVO>> getFollowersList(Long userId, int page, int size) {
         // 计算偏移量
         int offset = page * size;
         
         // 获取分页数据
         List<User> followersList = userFollowMapper.getFollowersList(userId, offset, size);
-        // 不返回密码
-        followersList.forEach(user -> user.setPasswordHash(null));
+        // 转换为 VO，脱敏
+        List<UserProfileVO> voList = followersList.stream()
+                .map(userService::toProfileVO)
+                .collect(java.util.stream.Collectors.toList());
         
         // 获取总数
         int total = getFollowersCount(userId);
         
         // 构建分页结果
-        PageResult<User> pageResult = PageResult.of(followersList, total, page, size);
+        PageResult<UserProfileVO> pageResult = PageResult.of(voList, total, page, size);
         return Result.success(pageResult);
     }
 
