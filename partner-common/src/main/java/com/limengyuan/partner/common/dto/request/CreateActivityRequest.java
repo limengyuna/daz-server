@@ -22,11 +22,6 @@ import java.util.List;
 @AllArgsConstructor
 public class CreateActivityRequest {
 
-    /**
-     * 发起人ID
-     */
-    @NotNull(message = "发起人ID不能为空")
-    private Long initiatorId;
 
     /**
      * 分类ID列表（支持多选）

@@ -1,6 +1,5 @@
 package com.limengyuan.partner.post.service;
 
-import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -37,7 +36,7 @@ public class MomentService {
     /**
      * 发布动态
      */
-    public Result<MomentVO> createMoment(CreateMomentRequest request) {
+    public Result<MomentVO> createMoment(Long userId, CreateMomentRequest request) {
         // 处理图片列表为 JSON 字符串
         String imagesJson = null;
         if (request.getImages() != null && !request.getImages().isEmpty()) {
@@ -49,7 +48,7 @@ public class MomentService {
         }
 
         Moment moment = Moment.builder()
-                .userId(request.getUserId())
+                .userId(userId)
                 .content(request.getContent().trim())
                 .images(imagesJson)
                 .locationName(request.getLocationName() != null ? request.getLocationName().trim() : null)

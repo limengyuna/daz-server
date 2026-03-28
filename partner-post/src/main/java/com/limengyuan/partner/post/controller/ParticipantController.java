@@ -7,7 +7,7 @@ import com.limengyuan.partner.common.dto.vo.ParticipantPageVO;
 import com.limengyuan.partner.common.dto.request.ReviewRequest;
 import com.limengyuan.partner.common.entity.Participant;
 import com.limengyuan.partner.common.result.Result;
-import com.limengyuan.partner.common.util.JwtUtils;
+import com.limengyuan.partner.common.util.UserContextHolder;
 import com.limengyuan.partner.post.service.ParticipantService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
@@ -31,37 +31,29 @@ public class ParticipantController {
     @PostMapping("/activities/{id}/join")
     public Result<Participant> joinActivity(
             @PathVariable("id") Long activityId,
-            @RequestBody(required = false) JoinActivityRequest request,
-            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+            @RequestBody(required = false) JoinActivityRequest request) {
 
-        Long userId = getUserIdFromAuth(authHeader);
+        Long userId = UserContextHolder.getPrincipalId();
         if (userId == null) {
             return Result.error("请先登录");
         }
-
         return participantService.joinActivity(activityId, userId, request);
     }
 
     /**
      * 获取活动参与者列表（分页）
      * GET /api/activities/{id}/participants?page=0&size=7
-     *
-     * @param activityId 活动ID
-     * @param page       页码，从0开始，默认0
-     * @param size       每页数量，默认7
      */
     @GetMapping("/activities/{id}/participants")
     public Result<ParticipantPageVO> getParticipants(
             @PathVariable("id") Long activityId,
             @RequestParam(value = "page", defaultValue = "0") int page,
-            @RequestParam(value = "size", defaultValue = "7") int size,
-            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+            @RequestParam(value = "size", defaultValue = "7") int size) {
 
-        Long userId = getUserIdFromAuth(authHeader);
+        Long userId = UserContextHolder.getPrincipalId();
         if (userId == null) {
             return Result.error("请先登录");
         }
-
         return participantService.getParticipantsPaged(activityId, page, size);
     }
 
@@ -73,14 +65,12 @@ public class ParticipantController {
     @PutMapping("/participants/{id}/review")
     public Result<Void> reviewParticipant(
             @PathVariable("id") Long participantId,
-            @RequestBody ReviewRequest request,
-            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+            @RequestBody ReviewRequest request) {
 
-        Long userId = getUserIdFromAuth(authHeader);
+        Long userId = UserContextHolder.getPrincipalId();
         if (userId == null) {
             return Result.error("请先登录");
         }
-
         return participantService.reviewParticipant(participantId, userId, request);
     }
 
@@ -89,15 +79,12 @@ public class ParticipantController {
      * DELETE /api/activities/{id}/leave
      */
     @DeleteMapping("/activities/{id}/leave")
-    public Result<Void> leaveActivity(
-            @PathVariable("id") Long activityId,
-            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+    public Result<Void> leaveActivity(@PathVariable("id") Long activityId) {
 
-        Long userId = getUserIdFromAuth(authHeader);
+        Long userId = UserContextHolder.getPrincipalId();
         if (userId == null) {
             return Result.error("请先登录");
         }
-
         return participantService.leaveActivity(activityId, userId);
     }
 
@@ -109,14 +96,12 @@ public class ParticipantController {
     @PutMapping("/participants/{id}/apply-msg")
     public Result<Void> updateApplyMsg(
             @PathVariable("id") Long participantId,
-            @RequestBody JoinActivityRequest request,
-            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+            @RequestBody JoinActivityRequest request) {
 
-        Long userId = getUserIdFromAuth(authHeader);
+        Long userId = UserContextHolder.getPrincipalId();
         if (userId == null) {
             return Result.error("请先登录");
         }
-
         return participantService.updateApplyMsg(participantId, userId, request.getApplyMsg());
     }
 
@@ -125,43 +110,26 @@ public class ParticipantController {
      * GET /api/my/applications
      */
     @GetMapping("/my/applications")
-    public Result<List<MyApplicationVO>> getMyApplications(
-            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+    public Result<List<MyApplicationVO>> getMyApplications() {
 
-        Long userId = getUserIdFromAuth(authHeader);
+        Long userId = UserContextHolder.getPrincipalId();
         if (userId == null) {
             return Result.error("请先登录");
         }
-
         return participantService.getMyApplications(userId);
     }
 
     /**
      * 获取我发布的活动及其申请列表
      * GET /api/my/activities-with-applications
-     * 
-     * 每个活动默认返回前7条申请记录，附带申请总数。
-     * 前端可通过 GET /api/activities/{id}/participants?page=1&size=7 加载更多。
      */
     @GetMapping("/my/activities-with-applications")
-    public Result<List<ActivityWithApplicationsVO>> getMyActivitiesWithApplications(
-            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+    public Result<List<ActivityWithApplicationsVO>> getMyActivitiesWithApplications() {
 
-        Long userId = getUserIdFromAuth(authHeader);
+        Long userId = UserContextHolder.getPrincipalId();
         if (userId == null) {
             return Result.error("请先登录");
         }
-
         return participantService.getMyActivitiesWithApplications(userId);
-    }
-
-    /**
-     * 从 Authorization Header 解析用户ID
-     */
-    private Long getUserIdFromAuth(String authHeader) {
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            return null;
-        }
-        return JwtUtils.getUserIdFromToken(authHeader);
     }
 }

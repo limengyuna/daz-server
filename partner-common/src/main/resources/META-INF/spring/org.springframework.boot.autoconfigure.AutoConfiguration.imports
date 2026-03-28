@@ -1,0 +1,2 @@
+com.limengyuan.partner.common.config.WebMvcConfig
+com.limengyuan.partner.common.interceptor.UserContextInterceptor

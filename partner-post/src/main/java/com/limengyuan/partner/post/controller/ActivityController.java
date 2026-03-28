@@ -9,7 +9,7 @@ import com.limengyuan.partner.common.dto.request.CreateActivityRequest;
 import com.limengyuan.partner.common.dto.PageResult;
 import com.limengyuan.partner.common.entity.Activity;
 import com.limengyuan.partner.common.result.Result;
-import com.limengyuan.partner.common.util.JwtUtils;
+import com.limengyuan.partner.common.util.UserContextHolder;
 import com.limengyuan.partner.post.service.ActivityRecommendService;
 import com.limengyuan.partner.post.service.ActivityService;
 import com.limengyuan.partner.post.service.TravelMemoryService;
@@ -45,7 +45,11 @@ public class ActivityController {
      */
     @PostMapping
     public Result<Activity> createActivity(@Valid @RequestBody CreateActivityRequest request) {
-        return activityService.createActivity(request);
+        Long userId = UserContextHolder.getPrincipalId();
+        if (userId == null) {
+            return Result.error("未登录或 Token 无效");
+        }
+        return activityService.createActivity(userId, request);
     }
 
     /**
@@ -61,54 +65,32 @@ public class ActivityController {
     /**
      * AI 个性化推荐活动
      * GET /api/activities/recommend
-     *
-     * 根据用户画像（标签、城市）调用 DeepSeek AI 生成推荐列表
-     * 请求头需携带: Authorization: Bearer {token}
      */
     @GetMapping("/recommend")
-    public Result<List<RecommendedActivityVO>> recommendActivities(
-            @RequestHeader(value = "Authorization", required = false) String authHeader) {
-
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+    public Result<List<RecommendedActivityVO>> recommendActivities() {
+        Long userId = UserContextHolder.getPrincipalId();
+        if (userId == null) {
             return Result.error("未登录或 Token 无效");
         }
-
-        Long userId = JwtUtils.getUserIdFromToken(authHeader);
-        if (userId == null) {
-            return Result.error("Token 无效或已过期");
-        }
-
         return recommendService.getRecommendations(userId);
     }
 
     /**
      * 获取当前登录用户发布的活动列表
      * GET /api/activities/my
-     * 
-     * 请求头需携带: Authorization: Bearer {token}
      */
     @GetMapping("/my")
-    public Result<List<ActivityVO>> getMyActivities(
-            @RequestHeader(value = "Authorization", required = false) String authHeader) {
-
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+    public Result<List<ActivityVO>> getMyActivities() {
+        Long userId = UserContextHolder.getPrincipalId();
+        if (userId == null) {
             return Result.error("未登录或 Token 无效");
         }
-
-        // 从 Token 解析用户 ID
-        Long userId = JwtUtils.getUserIdFromToken(authHeader);
-        if (userId == null) {
-            return Result.error("Token 无效或已过期");
-        }
-
         return activityService.getActivitiesByUser(userId);
     }
 
     /**
      * 根据用户ID获取该用户发布的活动列表（用于查看其他用户的活动帖子）
      * GET /api/activities/user/{userId}
-     *
-     * @param userId 目标用户ID
      */
     @GetMapping("/user/{userId}")
     public Result<List<ActivityVO>> getActivitiesByUserId(@PathVariable("userId") Long userId) {
@@ -118,10 +100,6 @@ public class ActivityController {
     /**
      * 获取所有活动列表 (分页，支持按分类筛选)
      * GET /api/activities?page=0&size=5&categoryId=1
-     * 
-     * @param page       页码，从0开始，默认0
-     * @param size       每页数量，默认5
-     * @param categoryId 分类ID，可选，不传则查询所有分类
      */
     @GetMapping
     @SentinelResource(value = "listActivities", blockHandler = "listActivitiesBlockHandler")
@@ -131,45 +109,29 @@ public class ActivityController {
             @RequestParam(value = "categoryId", required = false) Integer categoryId) {
         return activityService.getAllActivities(page, size, categoryId);
     }
+    
     // ==================== AI 旅行回忆 ====================
 
     /**
      * AI 生成旅行回忆视频脚本
      * GET /api/activities/{id}/travel-memory
-     *
-     * 融合活动数据、群聊记录、账单信息，调用 AI 生成结构化视频脚本
-     * 请求头需携带: Authorization: Bearer {token}
      */
     @GetMapping("/{id:\\d+}/travel-memory")
-    public Result<TravelMemoryVO> generateTravelMemory(
-            @PathVariable("id") Long activityId,
-            @RequestHeader(value = "Authorization", required = false) String authHeader) {
-
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+    public Result<TravelMemoryVO> generateTravelMemory(@PathVariable("id") Long activityId) {
+        Long userId = UserContextHolder.getPrincipalId();
+        if (userId == null) {
             return Result.error("未登录或 Token 无效");
         }
-
-        Long userId = JwtUtils.getUserIdFromToken(authHeader);
-        if (userId == null) {
-            return Result.error("Token 无效或已过期");
-        }
-
         return travelMemoryService.generateTravelMemory(activityId, userId);
     }
 
     // ==================== Sentinel 降级处理方法 ====================
 
-    /**
-     * 获取活动详情 - 限流降级处理
-     */
     public Result<ActivityVO> getActivityBlockHandler(Long activityId, BlockException ex) {
         log.warn("[Sentinel] 获取活动详情接口被限流/降级, activityId={}", activityId, ex);
         return Result.error("系统繁忙，请稍后再试");
     }
 
-    /**
-     * 获取活动列表 - 限流降级处理
-     */
     public Result<PageResult<ActivityVO>> listActivitiesBlockHandler(
             int page, int size, Integer categoryId, BlockException ex) {
         log.warn("[Sentinel] 获取活动列表接口被限流/降级", ex);

@@ -43,7 +43,7 @@ public class ActivityService {
     /**
      * 创建活动
      */
-    public Result<Activity> createActivity(CreateActivityRequest request) {
+    public Result<Activity> createActivity(Long initiatorId, CreateActivityRequest request) {
         // 1. 处理 images 为 JSON 字符串
         String imagesJson = null;
         if (request.getImages() != null && !request.getImages().isEmpty()) {
@@ -64,7 +64,7 @@ public class ActivityService {
 
         // 2. 构建Activity实体
         Activity activity = Activity.builder()
-                .initiatorId(request.getInitiatorId())
+                .initiatorId(initiatorId)
                 .categoryIds(categoryIdsJson)
                 .title(request.getTitle().trim())
                 .description(request.getDescription().trim())

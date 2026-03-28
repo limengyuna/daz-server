@@ -5,7 +5,7 @@ import com.limengyuan.partner.common.dto.vo.ExpenseSplitVO;
 import com.limengyuan.partner.common.dto.vo.ExpenseVO;
 import com.limengyuan.partner.common.dto.vo.SettlementVO;
 import com.limengyuan.partner.common.result.Result;
-import com.limengyuan.partner.common.util.JwtUtils;
+import com.limengyuan.partner.common.util.UserContextHolder;
 import com.limengyuan.partner.post.service.ExpenseService;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
@@ -34,10 +34,9 @@ public class ExpenseController {
     @PostMapping("/activities/{activityId}/expenses")
     public Result<ExpenseVO> createExpense(
             @PathVariable("activityId") Long activityId,
-            @Valid @RequestBody CreateExpenseRequest request,
-            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+            @Valid @RequestBody CreateExpenseRequest request) {
 
-        Long userId = getUserIdFromHeader(authHeader);
+        Long userId = UserContextHolder.getPrincipalId();
         if (userId == null) {
             return Result.error("未登录或 Token 无效");
         }
@@ -72,10 +71,9 @@ public class ExpenseController {
     @DeleteMapping("/activities/{activityId}/expenses/{expenseId}")
     public Result<Void> deleteExpense(
             @PathVariable("activityId") Long activityId,
-            @PathVariable("expenseId") Long expenseId,
-            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+            @PathVariable("expenseId") Long expenseId) {
 
-        Long userId = getUserIdFromHeader(authHeader);
+        Long userId = UserContextHolder.getPrincipalId();
         if (userId == null) {
             return Result.error("未登录或 Token 无效");
         }
@@ -108,10 +106,9 @@ public class ExpenseController {
      * GET /api/user/bills
      */
     @GetMapping("/user/bills")
-    public Result<List<ExpenseSplitVO>> getMyBills(
-            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+    public Result<List<ExpenseSplitVO>> getMyBills() {
 
-        Long userId = getUserIdFromHeader(authHeader);
+        Long userId = UserContextHolder.getPrincipalId();
         if (userId == null) {
             return Result.error("未登录或 Token 无效");
         }
@@ -119,15 +116,4 @@ public class ExpenseController {
         return expenseService.getMyBills(userId);
     }
 
-    // ==================== 私有方法 ====================
-
-    /**
-     * 从请求头中解析用户ID
-     */
-    private Long getUserIdFromHeader(String authHeader) {
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            return null;
-        }
-        return JwtUtils.getUserIdFromToken(authHeader);
-    }
 }

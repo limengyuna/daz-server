@@ -7,7 +7,7 @@ import com.limengyuan.partner.common.dto.response.UserMeResponse;
 import com.limengyuan.partner.common.dto.vo.UserProfileVO;
 import com.limengyuan.partner.common.entity.User;
 import com.limengyuan.partner.common.result.Result;
-import com.limengyuan.partner.common.util.JwtUtils;
+import com.limengyuan.partner.common.util.UserContextHolder;
 import com.limengyuan.partner.user.service.UserService;
 import com.limengyuan.partner.user.service.UserFollowService;
 import lombok.extern.slf4j.Slf4j;
@@ -35,35 +35,17 @@ public class UserController {
     /**
      * 获取当前登录用户信息
      * GET /api/user/me
-     * 
-     * 请求头需携带: Authorization: Bearer {token}
-     * 或 Cookie 中包含 token
-     * 
-     * 响应: { user: {...}, newToken: "..." }
-     * newToken 仅当 Token 剩余有效期 < 2 天时返回，前端需更新本地存储
+     *
+     * 响应: { user: {...} }
+     * (Token 刷新逻辑已迁至网关 AuthGlobalFilter)
      */
     @GetMapping("/me")
     @SentinelResource(value = "getUserMe", blockHandler = "getUserMeBlockHandler")
-    public Result<UserMeResponse> getCurrentUser(
-            @RequestHeader(value = "Authorization", required = false) String authHeader,
-            @CookieValue(value = "token", required = false) String cookieToken) {
+    public Result<UserMeResponse> getCurrentUser() {
 
-        // 优先从 Authorization Header 获取，其次从 Cookie 获取
-        String token = null;
-        if (authHeader != null && authHeader.startsWith("Bearer ")) {
-            token = authHeader;
-        } else if (cookieToken != null) {
-            token = cookieToken;
-        }
-
-        if (token == null) {
-            return Result.error("未登录或 Token 无效");
-        }
-
-        // 解析 Token 获取用户 ID
-        Long userId = JwtUtils.getUserIdFromToken(token);
+        Long userId = UserContextHolder.getPrincipalId();
         if (userId == null) {
-            return Result.error("Token 无效或已过期");
+            return Result.error("未登录或 Token 无效");
         }
 
         // 获取用户信息
@@ -83,11 +65,6 @@ public class UserController {
         UserMeResponse response = UserMeResponse.builder()
                 .user(user)
                 .build();
-
-        // 检查是否需要刷新 Token（剩余有效期 < 2 天）
-        if (JwtUtils.shouldRefreshToken(token)) {
-            response.setNewToken(JwtUtils.generateToken(userId));
-        }
 
         return Result.success(response);
     }
@@ -118,7 +95,16 @@ public class UserController {
      */
     @PutMapping("/{id}")
     public Result<User> updateUser(@PathVariable("id") Long userId, @RequestBody User user) {
-        return userService.updateUser(userId, user);
+        Long currentUserId = UserContextHolder.getPrincipalId();
+        if (currentUserId == null) {
+            return Result.error(401, "未登录");
+        }
+        // 防止同角色间的横向越权
+        if (!currentUserId.equals(userId)) {
+            return Result.error(403, "无权修改其他用户的资料");
+        }
+        user.setUserId(currentUserId); // 强制替换请求体中的 ID，防止污染
+        return userService.updateUser(currentUserId, user);
     }
 
     /**
@@ -127,7 +113,15 @@ public class UserController {
      */
     @DeleteMapping("/{id}")
     public Result<Void> deleteUser(@PathVariable("id") Long userId) {
-        return userService.deleteUser(userId);
+        Long currentUserId = UserContextHolder.getPrincipalId();
+        if (currentUserId == null) {
+            return Result.error(401, "未登录");
+        }
+        // 防止同角色间的横向越权
+        if (!currentUserId.equals(userId)) {
+            return Result.error(403, "无权删除其他用户的账号");
+        }
+        return userService.deleteUser(currentUserId);
     }
 
     // ==================== 关注相关接口 ====================
@@ -135,93 +129,58 @@ public class UserController {
     /**
      * 关注用户
      * POST /api/user/follow/{followeeId}
-     * 
-     * 请求头需携带: Authorization: Bearer {token}
      */
     @PostMapping("/follow/{followeeId}")
-    public Result<Void> followUser(
-            @PathVariable("followeeId") Long followeeId,
-            @RequestHeader(value = "Authorization", required = false) String authHeader,
-            @CookieValue(value = "token", required = false) String cookieToken) {
-
-        // 获取当前登录用户ID
-        Long currentUserId = extractUserId(authHeader, cookieToken);
+    public Result<Void> followUser(@PathVariable("followeeId") Long followeeId) {
+        Long currentUserId = UserContextHolder.getPrincipalId();
         if (currentUserId == null) {
             return Result.error("未登录或 Token 无效");
         }
-
         return userFollowService.followUser(currentUserId, followeeId);
     }
 
     /**
      * 取消关注
      * DELETE /api/user/follow/{followeeId}
-     * 
-     * 请求头需携带: Authorization: Bearer {token}
      */
     @DeleteMapping("/follow/{followeeId}")
-    public Result<Void> unfollowUser(
-            @PathVariable("followeeId") Long followeeId,
-            @RequestHeader(value = "Authorization", required = false) String authHeader,
-            @CookieValue(value = "token", required = false) String cookieToken) {
-
-        // 获取当前登录用户ID
-        Long currentUserId = extractUserId(authHeader, cookieToken);
+    public Result<Void> unfollowUser(@PathVariable("followeeId") Long followeeId) {
+        Long currentUserId = UserContextHolder.getPrincipalId();
         if (currentUserId == null) {
             return Result.error("未登录或 Token 无效");
         }
-
         return userFollowService.unfollowUser(currentUserId, followeeId);
     }
 
     /**
      * 检查是否关注某用户
      * GET /api/user/follow/check/{followeeId}
-     * 
-     * 请求头需携带: Authorization: Bearer {token}
      */
     @GetMapping("/follow/check/{followeeId}")
-    public Result<Boolean> checkFollowing(
-            @PathVariable("followeeId") Long followeeId,
-            @RequestHeader(value = "Authorization", required = false) String authHeader,
-            @CookieValue(value = "token", required = false) String cookieToken) {
-
-        // 获取当前登录用户ID
-        Long currentUserId = extractUserId(authHeader, cookieToken);
+    public Result<Boolean> checkFollowing(@PathVariable("followeeId") Long followeeId) {
+        Long currentUserId = UserContextHolder.getPrincipalId();
         if (currentUserId == null) {
             return Result.error("未登录或 Token 无效");
         }
-
         return userFollowService.checkFollowing(currentUserId, followeeId);
     }
 
     /**
      * 获取关注列表（我关注的人）- 分页
      * GET /api/user/following?page=0&size=10
-     * 
-     * 请求头需携带: Authorization: Bearer {token}
-     * 请求参数: page - 页码(从0开始，默认0), size - 每页数量(默认10)
      */
     @GetMapping("/following")
     public Result<PageResult<User>> getFollowingList(
             @RequestParam(value = "page", defaultValue = "0") int page,
-            @RequestParam(value = "size", defaultValue = "10") int size,
-            @RequestHeader(value = "Authorization", required = false) String authHeader,
-            @CookieValue(value = "token", required = false) String cookieToken) {
+            @RequestParam(value = "size", defaultValue = "10") int size) {
 
-        // 获取当前登录用户ID
-        Long currentUserId = extractUserId(authHeader, cookieToken);
+        Long currentUserId = UserContextHolder.getPrincipalId();
         if (currentUserId == null) {
             return Result.error("未登录或 Token 无效");
         }
 
-        // 参数校验
-        if (page < 0) {
-            page = 0;
-        }
-        if (size <= 0 || size > 100) {
-            size = 10;
-        }
+        if (page < 0) page = 0;
+        if (size <= 0 || size > 100) size = 10;
 
         return userFollowService.getFollowingList(currentUserId, page, size);
     }
@@ -229,30 +188,19 @@ public class UserController {
     /**
      * 获取粉丝列表（关注我的人）- 分页
      * GET /api/user/followers?page=0&size=10
-     * 
-     * 请求头需携带: Authorization: Bearer {token}
-     * 请求参数: page - 页码(从0开始，默认0), size - 每页数量(默认10)
      */
     @GetMapping("/followers")
     public Result<PageResult<User>> getFollowersList(
             @RequestParam(value = "page", defaultValue = "0") int page,
-            @RequestParam(value = "size", defaultValue = "10") int size,
-            @RequestHeader(value = "Authorization", required = false) String authHeader,
-            @CookieValue(value = "token", required = false) String cookieToken) {
+            @RequestParam(value = "size", defaultValue = "10") int size) {
 
-        // 获取当前登录用户ID
-        Long currentUserId = extractUserId(authHeader, cookieToken);
+        Long currentUserId = UserContextHolder.getPrincipalId();
         if (currentUserId == null) {
             return Result.error("未登录或 Token 无效");
         }
 
-        // 参数校验
-        if (page < 0) {
-            page = 0;
-        }
-        if (size <= 0 || size > 100) {
-            size = 10;
-        }
+        if (page < 0) page = 0;
+        if (size <= 0 || size > 100) size = 10;
 
         return userFollowService.getFollowersList(currentUserId, page, size);
     }
@@ -267,13 +215,8 @@ public class UserController {
             @RequestParam(value = "page", defaultValue = "0") int page,
             @RequestParam(value = "size", defaultValue = "10") int size) {
         
-        // 参数校验
-        if (page < 0) {
-            page = 0;
-        }
-        if (size <= 0 || size > 100) {
-            size = 10;
-        }
+        if (page < 0) page = 0;
+        if (size <= 0 || size > 100) size = 10;
         
         return userFollowService.getFollowingList(userId, page, size);
     }
@@ -288,13 +231,8 @@ public class UserController {
             @RequestParam(value = "page", defaultValue = "0") int page,
             @RequestParam(value = "size", defaultValue = "10") int size) {
         
-        // 参数校验
-        if (page < 0) {
-            page = 0;
-        }
-        if (size <= 0 || size > 100) {
-            size = 10;
-        }
+        if (page < 0) page = 0;
+        if (size <= 0 || size > 100) size = 10;
         
         return userFollowService.getFollowersList(userId, page, size);
     }
@@ -313,8 +251,8 @@ public class UserController {
     /**
      * 获取当前用户信息 - 限流降级处理
      */
-    public Result<UserMeResponse> getUserMeBlockHandler(
-            String authHeader, String cookieToken, BlockException ex) {
+    public Result<UserMeResponse> getUserMeBlockHandler(BlockException ex) {
+        // [修改说明：移除了原有的 Sentinel Handler 的 token 参数，防止其签名与 Controller 声明方法不一致导致报错]
         log.warn("[Sentinel] 获取当前用户信息接口被限流/降级", ex);
         return Result.error("系统繁忙，请稍后再试");
     }
@@ -334,25 +272,5 @@ public class UserController {
     public Result<List<User>> listUsersBlockHandler(BlockException ex) {
         log.warn("[Sentinel] 获取用户列表接口被限流/降级", ex);
         return Result.error("系统繁忙，请稍后再试");
-    }
-
-    // ==================== 辅助方法 ====================
-
-    /**
-     * 从请求头或Cookie中提取用户ID
-     */
-    private Long extractUserId(String authHeader, String cookieToken) {
-        String token = null;
-        if (authHeader != null && authHeader.startsWith("Bearer ")) {
-            token = authHeader;
-        } else if (cookieToken != null) {
-            token = cookieToken;
-        }
-
-        if (token == null) {
-            return null;
-        }
-
-        return JwtUtils.getUserIdFromToken(token);
     }
 }

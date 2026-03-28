@@ -38,6 +38,12 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-actuator</artifactId>
         </dependency>
+
+        <!-- 公共模块 (内部已声明 web 为 provided，不影响 gateway 的 webflux) -->
+        <dependency>
+            <groupId>com.limengyuan</groupId>
+            <artifactId>partner-common</artifactId>
+        </dependency>
     </dependencies>
 
     <build>

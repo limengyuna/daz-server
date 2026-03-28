@@ -4,7 +4,7 @@ import com.limengyuan.partner.common.dto.vo.ReviewVO;
 import com.limengyuan.partner.common.dto.request.SubmitReviewRequest;
 import com.limengyuan.partner.common.dto.vo.UserReviewPageVO;
 import com.limengyuan.partner.common.result.Result;
-import com.limengyuan.partner.common.util.JwtUtils;
+import com.limengyuan.partner.common.util.UserContextHolder;
 import com.limengyuan.partner.post.service.ReviewService;
 import org.springframework.web.bind.annotation.*;
 
@@ -31,12 +31,10 @@ public class ReviewController {
      * 请求体: { activityId, revieweeId, score(1-5), content(可选), tags(可选) }
      */
     @PostMapping
-    public Result<Void> submitReview(
-            @RequestBody SubmitReviewRequest request,
-            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+    public Result<Void> submitReview(@RequestBody SubmitReviewRequest request) {
 
-        // 从Token中获取当前登录用户ID作为评价人
-        Long reviewerId = extractUserId(authHeader);
+        // 从上下文获取当前登录用户ID作为评价人
+        Long reviewerId = UserContextHolder.getPrincipalId();
         if (reviewerId == null) {
             return Result.error("未登录或 Token 无效");
         }
@@ -76,15 +74,4 @@ public class ReviewController {
         return reviewService.getUserReviews(userId, page, size);
     }
 
-    // ==================== 辅助方法 ====================
-
-    /**
-     * 从请求头中提取用户ID
-     */
-    private Long extractUserId(String authHeader) {
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            return null;
-        }
-        return JwtUtils.getUserIdFromToken(authHeader);
-    }
 }

@@ -1,7 +1,6 @@
 package com.limengyuan.partner.common.dto.request;
 
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -19,11 +18,6 @@ import java.util.List;
 @AllArgsConstructor
 public class CreateMomentRequest {
 
-    /**
-     * 发布用户ID
-     */
-    @NotNull(message = "用户ID不能为空")
-    private Long userId;
 
     /**
      * 动态正文
