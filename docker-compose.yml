@@ -64,7 +64,7 @@ services:
       - "8081:8081"
     extra_hosts:
       - "host.docker.internal:host-gateway"
-
+    env_file: .env
     networks:
       - partner-network
     restart: always
@@ -94,6 +94,7 @@ services:
       - "8082:8082"
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    env_file: .env
     depends_on:
       redis:
         condition: service_healthy
@@ -151,6 +152,7 @@ services:
       - "8083:8083"
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    env_file: .env
     networks:
       - partner-network
     restart: always
@@ -180,6 +182,7 @@ services:
       - "8084:8084"
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    env_file: .env
     networks:
       - partner-network
     restart: always

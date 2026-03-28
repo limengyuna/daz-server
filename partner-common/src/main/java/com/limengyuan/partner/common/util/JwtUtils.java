@@ -14,9 +14,11 @@ import java.util.Date;
 public class JwtUtils {
 
     /**
-     * 密钥 (生产环境应该从配置文件读取)
+     * JWT 签名密钥，优先从环境变量 JWT_SECRET 读取，未设置则使用默认值（仅限本地开发）
      */
-    private static final String SECRET = "partner-finder-jwt-secret-key-2025";
+    private static final String SECRET = System.getenv("JWT_SECRET") != null
+            ? System.getenv("JWT_SECRET")
+            : "partner-finder-jwt-secret-key-2025";
 
     /**
      * Token 有效期: 7 天
