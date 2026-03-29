@@ -56,8 +56,9 @@ echo.
 :: ===========================
 echo [4/5] 正在并行上传文件到服务器...
 
-:: 先串行上传 docker-compose.yml（很小，瞬间完成）
+:: 先串行上传 docker-compose.yml 和 .env
 scp "%PROJECT_DIR%docker-compose.yml" %SERVER_USER%@%SERVER_IP%:%SERVER_DIR%/docker-compose.yml
+scp "%PROJECT_DIR%.env" %SERVER_USER%@%SERVER_IP%:%SERVER_DIR%/.env
 
 :: 清理旧的标志文件
 del /q "%TEMP%\upload_*.done" 2>nul
