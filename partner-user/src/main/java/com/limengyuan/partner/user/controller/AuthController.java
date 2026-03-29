@@ -47,7 +47,7 @@ public class AuthController {
                 .nickname(request.getNickname() != null ? request.getNickname() : request.getUsername())
                 .gender(request.getGender() != null ? request.getGender() : 0)
                 .city(request.getCity())
-                .creditScore(100)
+                .creditScore(70)
                 .status(1)
                 .build();
 
