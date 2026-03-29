@@ -35,4 +35,10 @@ public interface UserMapper extends BaseMapper<User> {
             WHERE user_id = #{userId}
             """)
     int updateUserInfo(User user);
+
+    /**
+     * 更新用户信誉分（设置为算法计算后的最终值）
+     */
+    @Update("UPDATE users SET credit_score = #{creditScore} WHERE user_id = #{userId}")
+    int updateCreditScore(@Param("userId") Long userId, @Param("creditScore") int creditScore);
 }

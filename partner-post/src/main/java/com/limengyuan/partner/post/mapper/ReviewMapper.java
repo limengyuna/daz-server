@@ -6,7 +6,7 @@ import com.limengyuan.partner.common.entity.Review;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
-import org.apache.ibatis.annotations.Update;
+
 
 import java.util.List;
 
@@ -67,10 +67,4 @@ public interface ReviewMapper extends BaseMapper<Review> {
      */
     @Select("SELECT AVG(score) FROM reviews WHERE reviewee_id = #{revieweeId}")
     Double getAverageScoreByRevieweeId(@Param("revieweeId") Long revieweeId);
-
-    /**
-     * 更新被评价人的信用分（信用分最低为0）
-     */
-    @Update("UPDATE users SET credit_score = GREATEST(0, credit_score + #{delta}) WHERE user_id = #{userId}")
-    void updateCreditScore(@Param("userId") Long userId, @Param("delta") int delta);
 }

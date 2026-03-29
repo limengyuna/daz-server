@@ -3,26 +3,29 @@ package com.limengyuan.partner.post.service;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.limengyuan.partner.common.dto.request.SubmitReviewRequest;
+import com.limengyuan.partner.common.dto.request.UpdateCreditRequest;
 import com.limengyuan.partner.common.dto.vo.ReviewVO;
 import com.limengyuan.partner.common.dto.vo.UserReviewPageVO;
-import com.limengyuan.partner.common.dto.request.SubmitReviewRequest;
 import com.limengyuan.partner.common.entity.Activity;
 import com.limengyuan.partner.common.entity.Participant;
 import com.limengyuan.partner.common.entity.Review;
 import com.limengyuan.partner.common.result.Result;
+import com.limengyuan.partner.post.feign.UserServiceClient;
 import com.limengyuan.partner.post.mapper.ActivityMapper;
 import com.limengyuan.partner.post.mapper.ParticipantMapper;
 import com.limengyuan.partner.post.mapper.ReviewMapper;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Map;
 
 /**
  * 评价服务层 - 封装评价相关业务逻辑
  */
+@Slf4j
 @Service
 @Transactional
 public class ReviewService {
@@ -34,26 +37,20 @@ public class ReviewService {
     /** 参与者状态：已通过 */
     private static final int PARTICIPANT_STATUS_APPROVED = 1;
 
-    /** 信用分变化映射：评分 -> 信用分变化量 */
-    private static final Map<Integer, Integer> CREDIT_SCORE_DELTA = Map.of(
-            5, 2,   // 5星: +2分
-            4, 1,   // 4星: +1分
-            3, 0,   // 3星: 不变
-            2, -1,  // 2星: -1分
-            1, -2   // 1星: -2分
-    );
-
     private final ReviewMapper reviewMapper;
     private final ActivityMapper activityMapper;
     private final ParticipantMapper participantMapper;
     private final ObjectMapper objectMapper;
+    private final UserServiceClient userServiceClient;
 
     public ReviewService(ReviewMapper reviewMapper, ActivityMapper activityMapper,
-                         ParticipantMapper participantMapper, ObjectMapper objectMapper) {
+                         ParticipantMapper participantMapper, ObjectMapper objectMapper,
+                         UserServiceClient userServiceClient) {
         this.reviewMapper = reviewMapper;
         this.activityMapper = activityMapper;
         this.participantMapper = participantMapper;
         this.objectMapper = objectMapper;
+        this.userServiceClient = userServiceClient;
     }
 
     /**
@@ -144,10 +141,16 @@ public class ReviewService {
             return Result.error("评价提交失败");
         }
 
-        // 11. 更新被评价人的信用分
-        int delta = CREDIT_SCORE_DELTA.getOrDefault(request.getScore(), 0);
-        if (delta != 0) {
-            reviewMapper.updateCreditScore(request.getRevieweeId(), delta);
+        // 11. 通过 OpenFeign 调用 user 模块重新计算被评价人的信誉分
+        try {
+            UpdateCreditRequest creditRequest = UpdateCreditRequest.builder()
+                    .userId(request.getRevieweeId())
+                    .reason("活动评价（评分：" + request.getScore() + "星）")
+                    .build();
+            userServiceClient.recalculateCreditScore(creditRequest);
+        } catch (Exception e) {
+            // 信誉分更新失败不影响评价提交
+            log.warn("[信誉分更新失败] revieweeId={}, error={}", request.getRevieweeId(), e.getMessage());
         }
 
         return Result.success("评价成功", null);
