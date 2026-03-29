@@ -67,6 +67,7 @@ public interface ActivityMapper extends BaseMapper<Activity> {
                     WHERE p.activity_id = a.activity_id AND p.status = 1) AS current_participants
             FROM activities a
             LEFT JOIN users u ON a.initiator_id = u.user_id
+            WHERE a.status = 0
             ORDER BY a.created_at DESC
             LIMIT #{size} OFFSET #{offset}
             """)
@@ -84,7 +85,7 @@ public interface ActivityMapper extends BaseMapper<Activity> {
                     WHERE p.activity_id = a.activity_id AND p.status = 1) AS current_participants
             FROM activities a
             LEFT JOIN users u ON a.initiator_id = u.user_id
-            WHERE JSON_CONTAINS(a.category_ids, JSON_ARRAY(#{categoryId}))
+            WHERE a.status = 0 AND JSON_CONTAINS(a.category_ids, JSON_ARRAY(#{categoryId}))
             ORDER BY a.created_at DESC
             LIMIT #{size} OFFSET #{offset}
             """)
@@ -95,13 +96,13 @@ public interface ActivityMapper extends BaseMapper<Activity> {
     /**
      * 查询活动总数（全部）
      */
-    @Select("SELECT COUNT(*) FROM activities")
+    @Select("SELECT COUNT(*) FROM activities WHERE status = 0")
     long countAll();
 
     /**
      * 查询指定分类的活动总数
      */
-    @Select("SELECT COUNT(*) FROM activities WHERE JSON_CONTAINS(category_ids, JSON_ARRAY(#{categoryId}))")
+    @Select("SELECT COUNT(*) FROM activities WHERE status = 0 AND JSON_CONTAINS(category_ids, JSON_ARRAY(#{categoryId}))")
     long countAllByCategory(@Param("categoryId") Integer categoryId);
 
     /**
