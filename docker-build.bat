@@ -91,6 +91,7 @@ echo   - 网关 (统一入口):      http://localhost:8080
 echo   - 用户服务:              http://localhost:8081
 echo   - 帖子服务:              http://localhost:8082
 echo   - 文件服务:              http://localhost:8083
+echo   - Milvus 向量数据库:     localhost:19530
 echo   - Sentinel 控制台:       http://localhost:8858  (账号密码: sentinel/sentinel)
 echo   - Zipkin 链路追踪:       http://localhost:9411
 echo.

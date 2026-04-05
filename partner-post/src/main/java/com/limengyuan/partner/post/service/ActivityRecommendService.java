@@ -34,15 +34,18 @@ public class ActivityRecommendService {
     private final ActivityMapper activityMapper;
     private final ObjectMapper objectMapper;
     private final StringRedisTemplate redisTemplate;
+    private final ActivityVectorService activityVectorService;
 
     public ActivityRecommendService(ChatClient.Builder chatClientBuilder,
                                      ActivityMapper activityMapper,
                                      ObjectMapper objectMapper,
-                                     StringRedisTemplate redisTemplate) {
+                                     StringRedisTemplate redisTemplate,
+                                     ActivityVectorService activityVectorService) {
         this.chatClient = chatClientBuilder.build();
         this.activityMapper = activityMapper;
         this.objectMapper = objectMapper;
         this.redisTemplate = redisTemplate;
+        this.activityVectorService = activityVectorService;
     }
 
     /**
@@ -75,8 +78,36 @@ public class ActivityRecommendService {
         String userTags = (String) userProfile.get("tags");
         String userCity = (String) userProfile.get("city");
 
-        // 3. 获取所有招募中的活动作为候选集
-        List<ActivityVO> candidates = activityMapper.findRecruitingActivities(CANDIDATE_LIMIT);
+        // 3. 通过 Milvus 向量相似度搜索，召回与用户画像最匹配的候选活动
+        String userProfileText = String.format("兴趣:%s 城市:%s",
+                userTags != null ? userTags : "无",
+                userCity != null ? userCity : "未知");
+        List<Long> candidateIds = activityVectorService.searchSimilar(userProfileText, CANDIDATE_LIMIT);
+
+        List<ActivityVO> candidates;
+        if (candidateIds != null && !candidateIds.isEmpty()) {
+            // 向量召回成功，回 MySQL 查完整活动信息
+            List<ActivityVO> rawCandidates = activityMapper.findByIds(candidateIds);
+            
+            // 过滤掉已经在 MySQL 中变为非招募状态的脏数据活动（保障实效性）
+            candidates = rawCandidates.stream()
+                    .filter(a -> a.getStatus() != null && a.getStatus() == 0)
+                    .collect(Collectors.toList());
+                    
+            log.info("[AI推荐] 向量召回成功, userId={}, 原始召回={}, 过滤后有效={}", 
+                    userId, rawCandidates.size(), candidates.size());
+
+            if (candidates.isEmpty()) {
+                // 召回的内容全都是过期活动的情况，触发兜底
+                log.warn("[AI推荐] 向量召回活动已全部过期, 回退到SQL查询, userId={}", userId);
+                candidates = activityMapper.findRecruitingActivities(CANDIDATE_LIMIT);
+            }
+        } else {
+            // 向量召回为空时，回退到 SQL 查询作为兜底
+            log.warn("[AI推荐] 向量召回为空, 回退到SQL查询, userId={}", userId);
+            candidates = activityMapper.findRecruitingActivities(CANDIDATE_LIMIT);
+        }
+
         if (candidates == null || candidates.isEmpty()) {
             return Result.success("暂无可推荐的活动", Collections.emptyList());
         }
@@ -178,7 +209,7 @@ public class ActivityRecommendService {
                 %s
                 
                 ## 要求
-                1. 从候选活动中选出最适合该用户的 5~10 个活动
+                1. 从候选活动中选出最适合该用户的 3 个活动
                 2. 按推荐优先级从高到低排列
                 3. 每个推荐附带简短的推荐理由（一句话即可）
                 4. activityId 必须是候选活动列表中真实存在的 ID

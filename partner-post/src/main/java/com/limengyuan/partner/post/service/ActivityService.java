@@ -32,12 +32,14 @@ public class ActivityService {
     private final ActivityMapper activityMapper;
     private final ParticipantMapper participantMapper;
     private final ObjectMapper objectMapper;
+    private final ActivityVectorService activityVectorService;
 
     public ActivityService(ActivityMapper activityMapper, ParticipantMapper participantMapper,
-            ObjectMapper objectMapper) {
+            ObjectMapper objectMapper, ActivityVectorService activityVectorService) {
         this.activityMapper = activityMapper;
         this.participantMapper = participantMapper;
         this.objectMapper = objectMapper;
+        this.activityVectorService = activityVectorService;
     }
 
     /**
@@ -90,6 +92,8 @@ public class ActivityService {
         // 4. 查询并返回完整的 ActivityVO（包含发起人信息）
         ActivityVO created = activityMapper.findByIdWithUser(activity.getActivityId());
         if (created != null) {
+            // 5. 将新活动写入 Milvus 向量索引（异步容错，失败不影响业务）
+            activityVectorService.addActivity(created);
             return Result.success("发布成功", created);
         }
         return Result.error("活动创建成功但查询失败");

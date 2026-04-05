@@ -33,6 +33,9 @@ public class ParticipantService {
     @Autowired
     private ActivityMapper activityMapper;
 
+    @Autowired
+    private ActivityVectorService activityVectorService;
+
     /**
      * 申请加入活动
      */
@@ -153,6 +156,8 @@ public class ParticipantService {
         int newCount = currentCount + 1;
         if (newCount >= activity.getMaxParticipants() - 1) {
             activityMapper.updateStatus(activity.getActivityId(), 1); // 1 = 已满员
+            // 满员后从 Milvus 向量索引中移除，不再参与推荐
+            activityVectorService.removeActivity(activity.getActivityId());
         }
 
         return Result.success("已通过", null);
@@ -214,6 +219,11 @@ public class ParticipantService {
             Activity activity = activityMapper.selectById(activityId);
             if (activity != null && activity.getStatus() == 1) { // 1 = 已满员
                 activityMapper.updateStatus(activityId, 0); // 0 = 招募中
+                // 恢复招募后重新写入 Milvus 向量索引
+                ActivityVO activityVO = activityMapper.findByIdWithUser(activityId);
+                if (activityVO != null) {
+                    activityVectorService.addActivity(activityVO);
+                }
             }
         }
 
@@ -257,6 +267,8 @@ public class ParticipantService {
             int newCount = currentCount + 1;
             if (newCount >= activity.getMaxParticipants() - 1) {
                 activityMapper.updateStatus(activity.getActivityId(), 1); // 1 = 已满员
+                // 满员后从 Milvus 向量索引中移除
+                activityVectorService.removeActivity(activity.getActivityId());
             }
 
             return Result.success("已通过", null);

@@ -131,6 +131,34 @@ public interface ActivityMapper extends BaseMapper<Activity> {
     List<ActivityVO> findRecruitingActivities(@Param("limit") int limit);
 
     /**
+     * 根据活动ID列表批量查询活动（包含发布者信息）
+     * 用于 RAG 向量召回后，回查完整的活动业务数据
+     */
+    @Select("""
+            <script>
+            SELECT a.*,
+                   u.nickname AS initiator_nickname,
+                   u.avatar_url AS initiator_avatar,
+                   u.credit_score AS initiator_credit_score,
+                   (SELECT COUNT(*) FROM participants p
+                    WHERE p.activity_id = a.activity_id AND p.status = 1) AS current_participants
+            FROM activities a
+            LEFT JOIN users u ON a.initiator_id = u.user_id
+            WHERE a.activity_id IN
+            <foreach collection="ids" item="id" open="(" separator="," close=")">
+                #{id}
+            </foreach>
+            </script>
+            """)
+    List<ActivityVO> findByIds(@Param("ids") List<Long> ids);
+
+    /**
+     * 查询所有招募中活动的 ID 列表（用于向量同步对比）
+     */
+    @Select("SELECT activity_id FROM activities WHERE status = 0")
+    List<Long> findRecruitingActivityIds();
+
+    /**
      * 更新活动状态
      * @param activityId 活动ID
      * @param status 新状态: 0-招募中, 1-已满员, 2-活动结束, 3-已取消
