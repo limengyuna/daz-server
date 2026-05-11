@@ -141,6 +141,19 @@ public class UserController {
         return userService.verifyRealName(currentUserId, realNameImage);
     }
 
+    /**
+     * 获取当前用户的实名认证信息（认证状态 + 图片链接）
+     * GET /api/user/verify
+     */
+    @GetMapping("/verify")
+    public Result<Map<String, Object>> getVerifyInfo() {
+        Long currentUserId = UserContextHolder.getPrincipalId();
+        if (currentUserId == null) {
+            return Result.error(401, "未登录");
+        }
+        return userService.getVerifyInfo(currentUserId);
+    }
+
     // ==================== 关注相关接口 ====================
 
     /**

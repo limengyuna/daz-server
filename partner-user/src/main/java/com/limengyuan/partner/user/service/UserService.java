@@ -9,7 +9,9 @@ import com.limengyuan.partner.user.mapper.UserMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
@@ -140,6 +142,21 @@ public class UserService {
             return Result.success("实名认证成功", null);
         }
         return Result.error("实名认证失败，请稍后重试");
+    }
+
+    /**
+     * 获取当前用户的实名认证信息
+     */
+    public Result<Map<String, Object>> getVerifyInfo(Long userId) {
+        User user = userMapper.selectById(userId);
+        if (user == null) {
+            return Result.error("用户不存在");
+        }
+
+        Map<String, Object> info = new HashMap<>();
+        info.put("isVerified", user.getIsVerified() != null ? user.getIsVerified() : 0);
+        info.put("realNameImage", user.getRealNameImage());
+        return Result.success(info);
     }
 
     /**
