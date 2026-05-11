@@ -128,26 +128,46 @@ public class TravelMemoryService {
 
         // ========== 6. 多源图片采集（活动图片 + 群聊图片 + 账单凭证图片）==========
         List<String> images = new ArrayList<>();
+        // 图片元数据描述列表，用于在 Prompt 中告诉 AI 每张图片的来源
+        List<String> imageDescriptions = new ArrayList<>();
 
         // 6.1 活动封面图片
-        images.addAll(parseImages(activity.getImages()));
+        List<String> coverImages = parseImages(activity.getImages());
+        for (int i = 0; i < coverImages.size(); i++) {
+            int idx = images.size();
+            images.add(coverImages.get(i));
+            imageDescriptions.add(String.format("图片%d：活动封面图（第%d张，通常是目的地风景或合照）", idx, i + 1));
+        }
 
-        // 6.2 群聊中发送的图片消息（msg_type=2，content 即图片 URL）
-        List<String> chatImageUrls = activityMapper.findGroupImageUrls(activityId, CHAT_IMAGE_LIMIT);
-        if (chatImageUrls != null) {
-            images.addAll(chatImageUrls);
+        // 6.2 群聊中发送的图片消息（带发送者信息，便于 AI 匹配文案）
+        List<ChatMessageVO> chatImageMessages = activityMapper.findGroupImageMessages(activityId, CHAT_IMAGE_LIMIT);
+        if (chatImageMessages != null) {
+            DateTimeFormatter timeFmt = DateTimeFormatter.ofPattern("M月d日 HH:mm");
+            for (ChatMessageVO msg : chatImageMessages) {
+                int idx = images.size();
+                images.add(msg.getContent());
+                String sender = msg.getSenderNickname() != null ? msg.getSenderNickname() : "匿名";
+                String time = msg.getCreatedAt() != null ? msg.getCreatedAt().format(timeFmt) : "";
+                imageDescriptions.add(String.format("图片%d：群聊图片，由'%s'发送于%s（旅途中的随手拍）", idx, sender, time));
+            }
         }
 
         // 6.3 账单凭证/小票图片
         for (ExpenseVO expense : expenses) {
-            images.addAll(parseImages(expense.getImages()));
+            List<String> expImages = parseImages(expense.getImages());
+            for (String url : expImages) {
+                int idx = images.size();
+                images.add(url);
+                imageDescriptions.add(String.format("图片%d：账单凭证（%s 的消费「%s」）", idx,
+                        expense.getPayerNickname(), expense.getTitle()));
+            }
         }
 
         int imageCount = images.size();
         log.info("[旅行回忆] activityId={}, 图片池大小: {}（活动+群聊+账单）", activityId, imageCount);
 
         // ========== 7. 构造 Prompt ==========
-        String prompt = buildPrompt(activity, memberNames, chatSummary, expenseSummary, imageCount);
+        String prompt = buildPrompt(activity, memberNames, chatSummary, expenseSummary, imageCount, imageDescriptions);
 
         // ========== 8. 调用 DeepSeek AI ==========
         List<AiScene> aiScenes;
@@ -296,9 +316,19 @@ public class TravelMemoryService {
 
     /**
      * 构造发送给 AI 的 Prompt
+     * 包含图片元数据描述，帮助 AI 将文案与图片精准匹配
      */
     private String buildPrompt(ActivityVO activity, List<String> memberNames,
-                                String chatSummary, String expenseSummary, int imageCount) {
+                                String chatSummary, String expenseSummary,
+                                int imageCount, List<String> imageDescriptions) {
+        // 构建图片详情文本
+        String imageDetail;
+        if (imageDescriptions.isEmpty()) {
+            imageDetail = "暂无可用图片";
+        } else {
+            imageDetail = String.join("\n", imageDescriptions);
+        }
+
         return String.format("""
                 你是一个温暖的旅行回忆故事作家。请根据以下活动数据，生成一段感人的旅行回忆视频脚本。
                 
@@ -314,14 +344,18 @@ public class TravelMemoryService {
                 ## 账单数据
                 %s
                 
-                ## 可用配图数量：%d 张（包含活动封面、群聊照片、账单凭证）
+                ## 可用配图详情（共 %d 张）
+                %s
                 
                 ## 要求
                 1. 生成 4~6 个场景，每个场景是视频中的一幕
                 2. 每个场景包含 1-3 句旁白文字，要温暖、有画面感
                 3. 自然地融入群聊中有趣或温馨的对话片段（直接引用）
                 4. 如果有账单数据，巧妙地融入花费细节（如"XX大方地请了一顿火锅"）
-                5. 每个场景必须配图！imageIndex 从 0 到 %d，表示配第几张图片。当图片不够时，可以重复使用同一张图片
+                5. 每个场景必须配图！imageIndex 从 0 到 %d，表示配第几张图片。**请根据上方图片详情，让文案内容与图片来源匹配**：
+                   - 描述目的地风景、合照等内容时，优先使用「活动封面图」
+                   - 引用某人的群聊发言或描述旅途经历时，优先使用该人发送的「群聊图片」
+                   - 提到消费、AA等内容时，可以使用「账单凭证」图片
                 6. animation 从以下选择：zoom_in（缓慢放大）、pan_left（左移）、fade_in（淡入）
                 7. durationSeconds 每个场景建议 3-5 秒
                 8. 第一个场景作为开头（如"那一天..."），最后一个场景作为结尾（如"期待下次再聚"）
@@ -334,6 +368,7 @@ public class TravelMemoryService {
                 chatSummary,
                 expenseSummary,
                 imageCount,
+                imageDetail,
                 Math.max(imageCount - 1, 0)
         );
     }

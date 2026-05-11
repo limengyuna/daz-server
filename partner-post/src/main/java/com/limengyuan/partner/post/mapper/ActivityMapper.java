@@ -196,4 +196,22 @@ public interface ActivityMapper extends BaseMapper<Activity> {
             """)
     List<String> findGroupImageUrls(@Param("activityId") Long activityId,
                                      @Param("limit") int limit);
+
+    /**
+     * 查询活动群聊中的图片消息（带发送者信息）
+     * 用于 AI 旅行回忆生成时，为每张群聊图片提供来源元数据，
+     * 帮助 AI 将文案与图片精准匹配。
+     */
+    @Select("""
+            SELECT m.message_id, m.sender_id, m.content, m.msg_type, m.created_at,
+                   u.nickname AS sender_nickname,
+                   u.avatar_url AS sender_avatar_url
+            FROM chat_messages m
+            LEFT JOIN users u ON m.sender_id = u.user_id
+            WHERE m.activity_id = #{activityId} AND m.msg_type = 2
+            ORDER BY m.created_at ASC
+            LIMIT #{limit}
+            """)
+    List<ChatMessageVO> findGroupImageMessages(@Param("activityId") Long activityId,
+                                                @Param("limit") int limit);
 }
