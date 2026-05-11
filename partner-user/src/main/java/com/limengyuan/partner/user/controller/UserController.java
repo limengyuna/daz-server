@@ -125,6 +125,22 @@ public class UserController {
         return userService.deleteUser(currentUserId);
     }
 
+    /**
+     * 实名认证（上传认证图片，一旦认证不允许修改）
+     * POST /api/user/verify
+     *
+     * 请求体: { "realNameImage": "图片链接" }
+     */
+    @PostMapping("/verify")
+    public Result<Void> verifyRealName(@RequestBody Map<String, String> body) {
+        Long currentUserId = UserContextHolder.getPrincipalId();
+        if (currentUserId == null) {
+            return Result.error(401, "未登录");
+        }
+        String realNameImage = body.get("realNameImage");
+        return userService.verifyRealName(currentUserId, realNameImage);
+    }
+
     // ==================== 关注相关接口 ====================
 
     /**

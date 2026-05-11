@@ -54,6 +54,11 @@ public class UserProfileVO {
     private String bio;
 
     /**
+     * 实名认证状态: 0-未认证, 1-已认证
+     */
+    private Integer isVerified;
+
+    /**
      * 个人标签 - JSON格式
      */
     private String tags;

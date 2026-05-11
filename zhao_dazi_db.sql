@@ -175,6 +175,8 @@ CREATE TABLE `users`  (
   `birthday` date NULL DEFAULT NULL COMMENT '生日，用于计算年龄',
   `city` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '所在城市',
   `bio` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '个性签名/简介',
+  `real_name_image` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '实名认证图片链接',
+  `is_verified` tinyint NULL DEFAULT 0 COMMENT '实名认证状态: 0-未认证, 1-已认证',
   `tags` json NULL COMMENT '个人标签(如: 社牛, 准时, 90后) - JSON格式存储',
   `credit_score` int NULL DEFAULT 100 COMMENT '信用分/靠谱值',
   `status` tinyint NULL DEFAULT 1 COMMENT '状态: 0-封禁, 1-正常',

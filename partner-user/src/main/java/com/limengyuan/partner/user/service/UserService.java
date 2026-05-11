@@ -115,6 +115,34 @@ public class UserService {
     }
 
     /**
+     * 实名认证（上传认证图片，一旦认证不允许修改）
+     */
+    public Result<Void> verifyRealName(Long userId, String realNameImage) {
+        // 检查用户是否存在
+        User user = userMapper.selectById(userId);
+        if (user == null) {
+            return Result.error("用户不存在");
+        }
+
+        // 检查是否已经实名认证，已认证不允许修改
+        if (user.getIsVerified() != null && user.getIsVerified() == 1) {
+            return Result.error("您已完成实名认证，无法重复认证");
+        }
+
+        // 校验图片链接不能为空
+        if (realNameImage == null || realNameImage.trim().isEmpty()) {
+            return Result.error("请上传实名认证图片");
+        }
+
+        // 执行实名认证更新
+        int rows = userMapper.updateRealNameVerification(userId, realNameImage);
+        if (rows > 0) {
+            return Result.success("实名认证成功", null);
+        }
+        return Result.error("实名认证失败，请稍后重试");
+    }
+
+    /**
      * User 实体转 UserProfileVO（脱敏）
      */
     public UserProfileVO toProfileVO(User user) {
@@ -126,6 +154,7 @@ public class UserService {
                 .birthday(user.getBirthday())
                 .city(user.getCity())
                 .bio(user.getBio())
+                .isVerified(user.getIsVerified())
                 .tags(user.getTags())
                 .creditScore(user.getCreditScore())
                 .createdAt(user.getCreatedAt())

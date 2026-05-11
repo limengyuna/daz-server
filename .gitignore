@@ -35,3 +35,5 @@ build/
 ### 本地敏感配置 ###
 **/application-local.properties
 .env
+lunwen/
+

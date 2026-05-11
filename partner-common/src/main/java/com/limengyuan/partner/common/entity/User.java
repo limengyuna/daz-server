@@ -71,6 +71,16 @@ public class User {
     private String bio;
 
     /**
+     * 实名认证图片链接
+     */
+    private String realNameImage;
+
+    /**
+     * 实名认证状态: 0-未认证, 1-已认证
+     */
+    private Integer isVerified;
+
+    /**
      * 个人标签 - JSON格式
      */
     private String tags;

@@ -37,6 +37,12 @@ public interface UserMapper extends BaseMapper<User> {
     int updateUserInfo(User user);
 
     /**
+     * 实名认证（更新认证图片和认证状态）
+     */
+    @Update("UPDATE users SET real_name_image = #{realNameImage}, is_verified = 1 WHERE user_id = #{userId}")
+    int updateRealNameVerification(@Param("userId") Long userId, @Param("realNameImage") String realNameImage);
+
+    /**
      * 更新用户信誉分（设置为算法计算后的最终值）
      */
     @Update("UPDATE users SET credit_score = #{creditScore} WHERE user_id = #{userId}")
