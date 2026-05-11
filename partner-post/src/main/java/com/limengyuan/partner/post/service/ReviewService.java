@@ -18,6 +18,8 @@ import com.limengyuan.partner.post.mapper.ReviewMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -141,17 +143,25 @@ public class ReviewService {
             return Result.error("评价提交失败");
         }
 
-        // 11. 通过 OpenFeign 调用 user 模块重新计算被评价人的信誉分
-        try {
-            UpdateCreditRequest creditRequest = UpdateCreditRequest.builder()
-                    .userId(request.getRevieweeId())
-                    .reason("活动评价（评分：" + request.getScore() + "星）")
-                    .build();
-            userServiceClient.recalculateCreditScore(creditRequest);
-        } catch (Exception e) {
-            // 信誉分更新失败不影响评价提交
-            log.warn("[信誉分更新失败] revieweeId={}, error={}", request.getRevieweeId(), e.getMessage());
-        }
+        // 11. 事务提交后再通过 OpenFeign 调用 user 模块重新计算信誉分
+        //     （事务内发起 Feign 调用时，新评价尚未提交，user 模块查不到，导致信誉分不更新）
+        Long revieweeId = request.getRevieweeId();
+        Integer score = request.getScore();
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                try {
+                    UpdateCreditRequest creditRequest = UpdateCreditRequest.builder()
+                            .userId(revieweeId)
+                            .reason("活动评价（评分：" + score + "星）")
+                            .build();
+                    userServiceClient.recalculateCreditScore(creditRequest);
+                } catch (Exception e) {
+                    // 信誉分更新失败不影响评价提交
+                    log.warn("[信誉分更新失败] revieweeId={}, error={}", revieweeId, e.getMessage());
+                }
+            }
+        });
 
         return Result.success("评价成功", null);
     }
