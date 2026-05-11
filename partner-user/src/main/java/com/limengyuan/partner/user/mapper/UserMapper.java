@@ -43,6 +43,12 @@ public interface UserMapper extends BaseMapper<User> {
     int updateRealNameVerification(@Param("userId") Long userId, @Param("realNameImage") String realNameImage);
 
     /**
+     * 修改密码
+     */
+    @Update("UPDATE users SET password_hash = #{passwordHash} WHERE user_id = #{userId}")
+    int updatePassword(@Param("userId") Long userId, @Param("passwordHash") String passwordHash);
+
+    /**
      * 更新用户信誉分（设置为算法计算后的最终值）
      */
     @Update("UPDATE users SET credit_score = #{creditScore} WHERE user_id = #{userId}")

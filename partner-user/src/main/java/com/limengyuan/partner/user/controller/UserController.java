@@ -3,6 +3,7 @@ package com.limengyuan.partner.user.controller;
 import com.alibaba.csp.sentinel.annotation.SentinelResource;
 import com.alibaba.csp.sentinel.slots.block.BlockException;
 import com.limengyuan.partner.common.dto.PageResult;
+import com.limengyuan.partner.common.dto.request.ChangePasswordRequest;
 import com.limengyuan.partner.common.dto.request.UpdateUserRequest;
 import com.limengyuan.partner.common.dto.response.UserMeResponse;
 import com.limengyuan.partner.common.dto.vo.UserProfileVO;
@@ -123,6 +124,37 @@ public class UserController {
             return Result.error(403, "无权删除其他用户的账号");
         }
         return userService.deleteUser(currentUserId);
+    }
+
+    /**
+     * 验证旧密码（修改密码第一步）
+     * POST /api/user/password/verify
+     *
+     * 请求体: { "oldPassword": "旧密码" }
+     */
+    @PostMapping("/password/verify")
+    public Result<Void> verifyOldPassword(@RequestBody Map<String, String> body) {
+        Long currentUserId = UserContextHolder.getPrincipalId();
+        if (currentUserId == null) {
+            return Result.error(401, "未登录");
+        }
+        String oldPassword = body.get("oldPassword");
+        return userService.verifyOldPassword(currentUserId, oldPassword);
+    }
+
+    /**
+     * 修改密码（需验证旧密码）
+     * PUT /api/user/password
+     *
+     * 请求体: { "oldPassword": "旧密码", "newPassword": "新密码" }
+     */
+    @PutMapping("/password")
+    public Result<Void> changePassword(@RequestBody ChangePasswordRequest request) {
+        Long currentUserId = UserContextHolder.getPrincipalId();
+        if (currentUserId == null) {
+            return Result.error(401, "未登录");
+        }
+        return userService.changePassword(currentUserId, request);
     }
 
     /**

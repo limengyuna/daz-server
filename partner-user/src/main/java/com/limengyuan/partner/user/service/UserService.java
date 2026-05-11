@@ -1,7 +1,9 @@
 package com.limengyuan.partner.user.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.limengyuan.partner.common.dto.request.ChangePasswordRequest;
 import com.limengyuan.partner.common.dto.request.UpdateUserRequest;
+import org.mindrot.jbcrypt.BCrypt;
 import com.limengyuan.partner.common.dto.vo.UserProfileVO;
 import com.limengyuan.partner.common.entity.User;
 import com.limengyuan.partner.common.result.Result;
@@ -142,6 +144,61 @@ public class UserService {
             return Result.success("实名认证成功", null);
         }
         return Result.error("实名认证失败，请稍后重试");
+    }
+
+    /**
+     * 验证旧密码是否正确（用于前端分步修改密码的第一步）
+     */
+    public Result<Void> verifyOldPassword(Long userId, String oldPassword) {
+        if (oldPassword == null || oldPassword.trim().isEmpty()) {
+            return Result.error("请输入旧密码");
+        }
+
+        User user = userMapper.selectById(userId);
+        if (user == null) {
+            return Result.error("用户不存在");
+        }
+
+        if (!BCrypt.checkpw(oldPassword, user.getPasswordHash())) {
+            return Result.error("旧密码错误");
+        }
+
+        return Result.success("密码验证通过", null);
+    }
+
+    /**
+     * 修改密码（需验证旧密码）
+     */
+    public Result<Void> changePassword(Long userId, ChangePasswordRequest request) {
+        // 校验参数
+        if (request.getOldPassword() == null || request.getOldPassword().trim().isEmpty()) {
+            return Result.error("请输入旧密码");
+        }
+        if (request.getNewPassword() == null || request.getNewPassword().trim().isEmpty()) {
+            return Result.error("请输入新密码");
+        }
+        if (request.getNewPassword().length() < 6) {
+            return Result.error("新密码长度不能少于6位");
+        }
+
+        // 查询用户
+        User user = userMapper.selectById(userId);
+        if (user == null) {
+            return Result.error("用户不存在");
+        }
+
+        // 验证旧密码
+        if (!BCrypt.checkpw(request.getOldPassword(), user.getPasswordHash())) {
+            return Result.error("旧密码错误");
+        }
+
+        // 加密新密码并更新
+        String newPasswordHash = BCrypt.hashpw(request.getNewPassword(), BCrypt.gensalt());
+        int rows = userMapper.updatePassword(userId, newPasswordHash);
+        if (rows > 0) {
+            return Result.success("密码修改成功", null);
+        }
+        return Result.error("密码修改失败，请稍后重试");
     }
 
     /**
