@@ -108,7 +108,7 @@ public interface ActivityMapper extends BaseMapper<Activity> {
     /**
      * 查询用户的标签和城市信息（用于 AI 推荐构建用户画像）
      */
-    @Select("SELECT tags, city FROM users WHERE user_id = #{userId}")
+    @Select("SELECT tags, city, bio FROM users WHERE user_id = #{userId}")
     java.util.Map<String, Object> findUserTagsAndCity(@Param("userId") Long userId);
 
     /**

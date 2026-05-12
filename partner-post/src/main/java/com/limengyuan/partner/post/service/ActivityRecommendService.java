@@ -77,11 +77,13 @@ public class ActivityRecommendService {
 
         String userTags = (String) userProfile.get("tags");
         String userCity = (String) userProfile.get("city");
+        String userBio = (String) userProfile.get("bio");
 
         // 3. 通过 Milvus 向量相似度搜索，召回与用户画像最匹配的候选活动
-        String userProfileText = String.format("兴趣:%s 城市:%s",
+        String userProfileText = String.format("兴趣:%s 城市:%s 简介:%s",
                 userTags != null ? userTags : "无",
-                userCity != null ? userCity : "未知");
+                userCity != null ? userCity : "未知",
+                userBio != null ? userBio : "无");
         List<Long> candidateIds = activityVectorService.searchSimilar(userProfileText, CANDIDATE_LIMIT);
 
         List<ActivityVO> candidates;
