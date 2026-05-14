@@ -122,20 +122,15 @@ public class ActivityService {
     }
 
     /**
-     * 分页获取所有活动列表，支持按分类筛选
+     * 分页获取所有活动列表，支持按分类筛选和关键词搜索
      */
-    public Result<PageResult<ActivityVO>> getAllActivities(int page, int size, Integer categoryId) {
+    public Result<PageResult<ActivityVO>> getAllActivities(int page, int size, Integer categoryId, String keyword) {
         int offset = page * size;
-        List<ActivityVO> activities;
-        long total;
+        // 去除关键词首尾空格，空字符串视为无关键词
+        String trimmedKeyword = (keyword != null && !keyword.trim().isEmpty()) ? keyword.trim() : null;
 
-        if (categoryId != null) {
-            activities = activityMapper.findAllWithUserByCategory(categoryId, size, offset);
-            total = activityMapper.countAllByCategory(categoryId);
-        } else {
-            activities = activityMapper.findAllWithUser(size, offset);
-            total = activityMapper.countAll();
-        }
+        List<ActivityVO> activities = activityMapper.findAllWithUserFiltered(categoryId, trimmedKeyword, size, offset);
+        long total = activityMapper.countAllFiltered(categoryId, trimmedKeyword);
 
         return Result.success(PageResult.of(activities, total, page, size));
     }

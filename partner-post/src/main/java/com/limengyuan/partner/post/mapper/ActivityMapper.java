@@ -107,6 +107,58 @@ public interface ActivityMapper extends BaseMapper<Activity> {
     long countAllByCategory(@Param("categoryId") Integer categoryId);
 
     /**
+     * 分页查询活动（支持关键词搜索 + 分类筛选）
+     * 关键词匹配 title、description、location_name
+     */
+    @Select("""
+            <script>
+            SELECT a.*,
+                   u.nickname AS initiator_nickname,
+                   u.avatar_url AS initiator_avatar,
+                   u.credit_score AS initiator_credit_score,
+                   (SELECT COUNT(*) FROM participants p
+                    WHERE p.activity_id = a.activity_id AND p.status = 1) AS current_participants
+            FROM activities a
+            LEFT JOIN users u ON a.initiator_id = u.user_id
+            WHERE a.status = 0
+            <if test="categoryId != null">
+                AND JSON_CONTAINS(a.category_ids, JSON_ARRAY(#{categoryId}))
+            </if>
+            <if test="keyword != null and keyword != ''">
+                AND (a.title LIKE CONCAT('%', #{keyword}, '%')
+                     OR a.description LIKE CONCAT('%', #{keyword}, '%')
+                     OR a.location_name LIKE CONCAT('%', #{keyword}, '%'))
+            </if>
+            ORDER BY a.created_at DESC
+            LIMIT #{size} OFFSET #{offset}
+            </script>
+            """)
+    List<ActivityVO> findAllWithUserFiltered(@Param("categoryId") Integer categoryId,
+                                             @Param("keyword") String keyword,
+                                             @Param("size") int size,
+                                             @Param("offset") int offset);
+
+    /**
+     * 查询活动总数（支持关键词搜索 + 分类筛选）
+     */
+    @Select("""
+            <script>
+            SELECT COUNT(*) FROM activities a
+            WHERE a.status = 0
+            <if test="categoryId != null">
+                AND JSON_CONTAINS(a.category_ids, JSON_ARRAY(#{categoryId}))
+            </if>
+            <if test="keyword != null and keyword != ''">
+                AND (a.title LIKE CONCAT('%', #{keyword}, '%')
+                     OR a.description LIKE CONCAT('%', #{keyword}, '%')
+                     OR a.location_name LIKE CONCAT('%', #{keyword}, '%'))
+            </if>
+            </script>
+            """)
+    long countAllFiltered(@Param("categoryId") Integer categoryId,
+                           @Param("keyword") String keyword);
+
+    /**
      * 查询用户的标签和城市信息（用于 AI 推荐构建用户画像）
      */
     @Select("SELECT tags, city, bio FROM users WHERE user_id = #{userId}")

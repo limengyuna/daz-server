@@ -97,16 +97,17 @@ public class ActivityController {
     }
 
     /**
-     * 获取所有活动列表 (分页，支持按分类筛选)
-     * GET /api/activities?page=0&size=5&categoryId=1
+     * 获取所有活动列表 (分页，支持按分类筛选和关键词搜索)
+     * GET /api/activities?page=0&size=5&categoryId=1&keyword=登山
      */
     @GetMapping
     @SentinelResource(value = "listActivities", blockHandler = "listActivitiesBlockHandler")
     public Result<PageResult<ActivityVO>> getAllActivities(
             @RequestParam(value = "page", defaultValue = "0") int page,
             @RequestParam(value = "size", defaultValue = "5") int size,
-            @RequestParam(value = "categoryId", required = false) Integer categoryId) {
-        return activityService.getAllActivities(page, size, categoryId);
+            @RequestParam(value = "categoryId", required = false) Integer categoryId,
+            @RequestParam(value = "keyword", required = false) String keyword) {
+        return activityService.getAllActivities(page, size, categoryId, keyword);
     }
     
     // ==================== AI 旅行回忆 ====================
@@ -132,7 +133,7 @@ public class ActivityController {
     }
 
     public Result<PageResult<ActivityVO>> listActivitiesBlockHandler(
-            int page, int size, Integer categoryId, BlockException ex) {
+            int page, int size, Integer categoryId, String keyword, BlockException ex) {
         log.warn("[Sentinel] 获取活动列表接口被限流/降级", ex);
         return Result.error("系统繁忙，请稍后再试");
     }
