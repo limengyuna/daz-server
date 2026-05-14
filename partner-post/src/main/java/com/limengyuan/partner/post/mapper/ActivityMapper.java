@@ -9,6 +9,7 @@ import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Update;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 /**
@@ -159,12 +160,49 @@ public interface ActivityMapper extends BaseMapper<Activity> {
     List<Long> findRecruitingActivityIds();
 
     /**
+     * 增量查询：获取指定时间之后状态发生变更的活动
+     * 用于定时增量同步，只扫描有变化的数据，避免全表扫描
+     *
+     * @param since 上次同步时间
+     * @return 变更的活动列表（只包含 activity_id 和 status）
+     */
+    @Select("SELECT activity_id, status FROM activities WHERE updated_at > #{since}")
+    List<Activity> findChangedSince(@Param("since") LocalDateTime since);
+
+    /**
      * 更新活动状态
      * @param activityId 活动ID
      * @param status 新状态: 0-招募中, 1-已满员, 2-活动结束, 3-已取消
      */
     @Update("UPDATE activities SET status = #{status}, updated_at = NOW() WHERE activity_id = #{activityId}")
     boolean updateStatus(@Param("activityId") Long activityId, @Param("status") Integer status);
+
+    /**
+     * 查询已过期但状态未更新的活动 ID 列表
+     * 条件：end_time 已过且 status 仍为招募中(0)或已满员(1)
+     *
+     * @return 需要自动结束的活动 ID 列表
+     */
+    @Select("SELECT activity_id FROM activities WHERE end_time < NOW() AND status IN (0, 1)")
+    List<Long> findExpiredActivityIds();
+
+    /**
+     * 批量将活动状态更新为已结束(status=2)
+     * 用于定时任务自动结束过期活动
+     *
+     * @param ids 活动 ID 列表
+     * @return 更新的行数
+     */
+    @Update("""
+            <script>
+            UPDATE activities SET status = 2, updated_at = NOW()
+            WHERE activity_id IN
+            <foreach collection="ids" item="id" open="(" separator="," close=")">
+                #{id}
+            </foreach>
+            </script>
+            """)
+    int batchUpdateStatusToEnded(@Param("ids") List<Long> ids);
 
     /**
      * 查询活动群聊中的文本消息（用于 AI 旅行回忆生成）

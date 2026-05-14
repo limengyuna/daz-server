@@ -24,7 +24,7 @@ import java.util.stream.Collectors;
 public class ActivityRecommendService {
 
     /** 候选活动最大数量 */
-    private static final int CANDIDATE_LIMIT = 20;
+    private static final int CANDIDATE_LIMIT = 10;
     /** 缓存 key 前缀 */
     private static final String CACHE_KEY_PREFIX = "recommend:user:";
     /** 缓存过期时间：30 分钟 */
