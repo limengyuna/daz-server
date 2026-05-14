@@ -43,7 +43,8 @@ CREATE TABLE `activities`  (
   PRIMARY KEY (`activity_id`) USING BTREE,
   INDEX `idx_initiator`(`initiator_id` ASC) USING BTREE,
   INDEX `idx_start_time`(`start_time` ASC) USING BTREE,
-  INDEX `idx_geo`(`latitude` ASC, `longitude` ASC) USING BTREE COMMENT '简单的地理位置索引'
+  INDEX `idx_geo`(`latitude` ASC, `longitude` ASC) USING BTREE COMMENT '简单的地理位置索引',
+  INDEX `idx_updated_at`(`updated_at` ASC) USING BTREE COMMENT '增量同步用：按更新时间查询变更的活动'
 ) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '搭子活动表' ROW_FORMAT = Dynamic;
 
 -- ----------------------------
